@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Restos">
 <meta name="theme-color" content="#ffffff">
 <title>Resto Notes</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <style>
 :root{--bg:#fff;--card:#fff;--line:#e8e5e1;--txt:#252321;--mut:#77736e;--acc:#e86f45;--nav:66px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -54,7 +54,6 @@ h1{margin:0;font-size:24px}
 .pin{width:34px;height:34px;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:var(--acc);border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .pin{font-size:0}
 .pin::after{content:"🍽️";font-size:16px;transform:rotate(45deg)}
-.leaflet-popup-content a{color:#d4430f;font-weight:600}
 /* feuilles */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;display:flex;align-items:flex-end}
 .overlay[hidden]{display:none}
@@ -147,14 +146,14 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
 <div id="detail" class="overlay" hidden><div class="panel" id="detailBody"></div></div>
 <div id="toast"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 let items = [], me = null, draft = null, suggData = [];
-let map = null, markers = [], meMarker = null;
+let map = null, markers = [], meMarker = null, infoWindow = null, mapLoading = false;
 let selCity = '', selDist = '', selType = '', view = 'cam', stream = null;
 
 /* ---------- stockage (IndexedDB) ---------- */
@@ -437,46 +436,92 @@ function openDetail(id) {
     $('#detail').hidden = true; renderList(); if (map) drawMarkers(false);
   };
   const dm = $('#dMap');
-  if (dm) dm.onclick = () => { $('#detail').hidden = true; showView('map'); setTimeout(() => { map.setView([i.lat, i.lon], 17); }, 120); };
+  if (dm) dm.onclick = () => { $('#detail').hidden = true; showView('map'); setTimeout(() => { if (map) { map.setCenter({ lat: Number(i.lat), lng: Number(i.lon) }); map.setZoom(17); } }, 300); };
 }
 $('#detail').onclick = e => { if (e.target.id === 'detail') $('#detail').hidden = true; };
 
 /* ---------- carte ---------- */
 function initMap() {
-  if (typeof L === 'undefined') { toast('Carte indisponible (réseau ?)'); return; }
-  if (!map) {
-    map = L.map('map', { zoomControl: false }).setView([48.8566, 2.3522], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-    map.on('popupopen', e => {
-      const a = e.popup.getElement().querySelector('[data-open]');
-      if (a) a.addEventListener('click', ev => { ev.preventDefault(); openDetail(a.dataset.open); });
-    });
+  if (window.google?.maps) {
+    if (!map) createGoogleMap();
+    else { drawMarkers(true); updateMe(); }
+    return;
   }
-  setTimeout(() => { map.invalidateSize(); drawMarkers(true); updateMe(); }, 60);
+  if (mapLoading) return;
+  mapLoading = true;
+  fetch('/.netlify/functions/maps-config')
+    .then(r => { if (!r.ok) throw new Error('Configuration Google Maps indisponible'); return r.json(); })
+    .then(config => {
+      if (!config.key) throw new Error('Clé Google Maps absente');
+      window.initRestoGoogleMap = () => createGoogleMap();
+      const script = document.createElement('script');
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(config.key) + '&callback=initRestoGoogleMap&loading=async';
+      script.async = true;
+      script.onerror = () => { mapLoading = false; toast('Chargement de Google Maps impossible'); };
+      document.head.appendChild(script);
+    })
+    .catch(err => { mapLoading = false; toast(err.message || 'Carte indisponible'); });
+}
+function createGoogleMap() {
+  map = new google.maps.Map($('#map'), {
+    center: { lat: 48.8566, lng: 2.3522 },
+    zoom: 12,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false
+  });
+  infoWindow = new google.maps.InfoWindow();
+  drawMarkers(true);
+  updateMe();
 }
 function drawMarkers(fit) {
-  if (!map) return;
-  markers.forEach(m => m.remove());
-  markers = items.filter(i => i.lat != null).map(i => {
-    const m = L.marker([i.lat, i.lon], { icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [34, 34], iconAnchor: [17, 30] }) }).addTo(map);
-    m.bindPopup(`<b>${esc(i.name)}</b><br>${esc([i.district, i.city].filter(Boolean).join(' · '))}<br><a href="#" data-open="${esc(i.id)}">Voir la fiche</a>`);
-    return m;
+  if (!map || !window.google?.maps) return;
+  markers.forEach(m => m.setMap(null));
+  markers = items.filter(i => i.lat != null && i.lon != null).map(i => {
+    const marker = new google.maps.Marker({
+      position: { lat: Number(i.lat), lng: Number(i.lon) },
+      map,
+      title: i.name
+    });
+    marker.addListener('click', () => {
+      infoWindow.setContent(`<div style="color:#252321"><b>${esc(i.name)}</b><br>${esc([i.district, i.city].filter(Boolean).join(' · '))}<br><a href="#" data-open="${esc(i.id)}">Voir la fiche</a></div>`);
+      infoWindow.open({ anchor: marker, map });
+      google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+        const link = document.querySelector('#map [data-open]');
+        if (link) link.addEventListener('click', ev => { ev.preventDefault(); openDetail(link.dataset.open); });
+      });
+    });
+    return marker;
   });
   if (fit) fitAll();
 }
 function fitAll() {
-  if (!map) return;
-  const pts = items.filter(i => i.lat != null).map(i => [i.lat, i.lon]);
-  if (me) pts.push([me.lat, me.lon]);
-  if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
-  else if (pts.length === 1) map.setView(pts[0], 15);
+  if (!map || !window.google?.maps) return;
+  const pts = items.filter(i => i.lat != null && i.lon != null);
+  if (me) pts.push({ lat: me.lat, lon: me.lon });
+  if (pts.length > 1) {
+    const bounds = new google.maps.LatLngBounds();
+    pts.forEach(p => bounds.extend({ lat: Number(p.lat), lng: Number(p.lon) }));
+    map.fitBounds(bounds, 50);
+    google.maps.event.addListenerOnce(map, 'idle', () => { if (map.getZoom() > 16) map.setZoom(16); });
+  } else if (pts.length === 1) {
+    map.setCenter({ lat: Number(pts[0].lat), lng: Number(pts[0].lon) });
+    map.setZoom(15);
+  }
 }
 function updateMe() {
-  if (!map || !me) return;
-  if (!meMarker) meMarker = L.circleMarker([me.lat, me.lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#2f80ff', fillOpacity: 1 }).addTo(map);
-  else meMarker.setLatLng([me.lat, me.lon]);
+  if (!map || !me || !window.google?.maps) return;
+  const position = { lat: me.lat, lng: me.lon };
+  if (!meMarker) meMarker = new google.maps.Marker({
+    position, map, title: 'Ma position',
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#2f80ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }
+  });
+  else meMarker.setPosition(position);
 }
-$('#btnMe').onclick = () => { if (me && map) map.setView([me.lat, me.lon], 16); else toast('Position indisponible : active la localisation'); };
+$('#btnMe').onclick = () => {
+  if (me && map) { map.setCenter({ lat: me.lat, lng: me.lon }); map.setZoom(16); }
+  else toast('Position indisponible : active la localisation');
+};
 $('#btnAll').onclick = fitAll;
 
 /* ---------- sauvegarde / import ---------- */
