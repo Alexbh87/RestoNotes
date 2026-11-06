@@ -286,7 +286,6 @@ function closeSheet() {
 async function newFromImage(photo, posP, fromGallery) {
   const d = { photo, lat: null, lon: null };
   openSheet(d);
-  enrichRestaurant(d).catch(() => {});
   setStatus('📍 Localisation en cours…');
   const pos = await posP;
   if (draft !== d) return;
@@ -304,6 +303,8 @@ async function newFromImage(photo, posP, fromGallery) {
   } else {
     setStatus(n.status === 'fulfilled' ? 'Aucun restaurant trouvé à proximité : saisis le nom.' : '⚠️ Recherche des restos impossible (réseau ?) : saisis le nom.');
   }
+  // Le GPS et le nom suggéré sont maintenant disponibles pour identifier le bon établissement.
+  enrichRestaurant(d).catch(() => {});
 }
 function applySuggestion(i, onlyIfEmpty) {
   const s = suggData[i]; if (!s) return;
@@ -341,17 +342,26 @@ async function callEnrichment(payload) {
   return data;
 }
 async function enrichRestaurant(d) {
-  setStatus('✨ L’IA analyse la photo et recherche des informations en ligne…');
+  setStatus('✨ Lecture du nom sur la façade et identification du restaurant…');
   try {
-    const data=await callEnrichment({photo:d.photo,name:$('#iName').value,address:$('#iAddr').value,city:$('#iCity').value});
+    const data=await callEnrichment({
+      photo:d.photo,
+      name:$('#iName').value,
+      address:$('#iAddr').value,
+      city:$('#iCity').value,
+      lat:d.lat,
+      lon:d.lon
+    });
     if(draft!==d) return;
-    if(data.type) { d.type=data.type; $('#iType').value=data.type; }
     if(data.name) setIfEmpty('name',data.name);
+    if(data.type) { d.type=data.type; $('#iType').value=data.type; }
     if(data.website) setIfEmpty('website',data.website);
     if(data.facadeImageUrl) d.facadePhoto=data.facadeImageUrl;
     if(data.menuUrl) d.menuUrl=data.menuUrl;
-    setStatus(data.type ? '✨ Type détecté : '+data.type+'. Vérifie les informations avant d’enregistrer.' : 'Analyse terminée : vérifie les informations.');
-  } catch(e) { setStatus('ℹ️ Analyse IA non configurée pour le moment. Tu peux compléter la fiche manuellement.'); }
+    setStatus(data.type
+      ? '✨ Restaurant identifié : '+($('#iName').value || data.name)+'. Type : '+data.type+'. Vérifie avant d’enregistrer.'
+      : 'Analyse terminée. Vérifie le nom et choisis le type si nécessaire.');
+  } catch(e) { setStatus('ℹ️ Identification automatique indisponible. Tu peux compléter la fiche manuellement.'); }
 }
 
 $('#btnCancel').onclick = closeSheet;
@@ -474,6 +484,23 @@ function createGoogleMap() {
   drawMarkers(true);
   updateMe();
 }
+function restaurantIcon(type) {
+  const t = norm(type);
+  if (/sushi|japon|japanese/.test(t)) return '🍣';
+  if (/italien|italian|pizza|pizzeria/.test(t)) return '🍕';
+  if (/chinois|chinese/.test(t)) return '🥢';
+  if (/indien|indian/.test(t)) return '🍛';
+  if (/mexicain|mexican|taco/.test(t)) return '🌮';
+  if (/francais|française|gastronom|bistrot|brasserie/.test(t)) return '🍷';
+  if (/burger|americain|american/.test(t)) return '🍔';
+  if (/libanais|levantin|middle eastern|moyen-orient/.test(t)) return '🥙';
+  if (/veget|vegan|healthy|salade/.test(t)) return '🥑';
+  if (/cafe|café|brunch|coffee/.test(t)) return '☕';
+  if (/thai|thailandais/.test(t)) return '🍜';
+  if (/seafood|poisson|fruits de mer|sushi/.test(t)) return '🐟';
+  if (/espagnol|tapas|paella/.test(t)) return '🥘';
+  return '🍴';
+}
 function drawMarkers(fit) {
   if (!map || !window.google?.maps) return;
   markers.forEach(m => m.setMap(null));
@@ -481,7 +508,19 @@ function drawMarkers(fit) {
     const marker = new google.maps.Marker({
       position: { lat: Number(i.lat), lng: Number(i.lon) },
       map,
-      title: i.name
+      title: i.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 17,
+        fillColor: '#e86f45',
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 2
+      },
+      label: {
+        text: restaurantIcon(i.type),
+        fontSize: '17px'
+      }
     });
     marker.addListener('click', () => {
       infoWindow.setContent(`<div style="color:#252321"><b>${esc(i.name)}</b><br>${esc([i.district, i.city].filter(Boolean).join(' · '))}<br><a href="#" data-open="${esc(i.id)}">Voir la fiche</a></div>`);
