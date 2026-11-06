@@ -7,22 +7,22 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Restos">
-<meta name="theme-color" content="#0f0f10">
+<meta name="theme-color" content="#ffffff">
 <title>Resto Notes</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{--bg:#0f0f10;--card:#1b1b1e;--line:#2c2c31;--txt:#f3f3f3;--mut:#9a9aa3;--acc:#ff6b3d;--nav:60px}
+:root{--bg:#fff;--card:#fff;--line:#e8e5e1;--txt:#252321;--mut:#77736e;--acc:#e86f45;--nav:66px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 button,input,textarea{font:inherit;color:inherit}
 .view{display:none;position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));overflow:auto}
 .view.active{display:block}
-nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#151517;border-top:1px solid var(--line);display:flex;z-index:900}
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line);display:flex;z-index:900;box-shadow:0 -3px 14px rgba(30,25,20,.05)}
 nav button{flex:1;background:none;border:0;color:var(--mut);font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 nav button span{font-size:22px}
-nav button.on{color:var(--acc)}
+nav button.on{color:var(--acc)}nav button[data-v="cam"]{color:#fff;background:var(--acc);border-radius:18px;margin:7px 22px;font-weight:700}nav button[data-v="cam"] span{font-size:24px}
 /* caméra */
-#v-cam{overflow:hidden;background:#000}
+#v-cam{overflow:hidden;background:#fff}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #camErr{position:absolute;left:16px;right:16px;top:30%;text-align:center;color:var(--mut)}
 #camErr .btn{margin-top:12px}
@@ -39,10 +39,10 @@ h1{margin:0;font-size:24px}
 .chips:empty{display:none}
 .chip{flex:none;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--txt);font-size:14px}
 .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
-#list{padding:8px 16px 24px;display:grid;gap:10px}
-.card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer}
-.card img{width:92px;height:92px;object-fit:cover;flex:none;background:#000}
-.card div{padding:10px 10px 10px 0;min-width:0}
+.typechips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px;scrollbar-width:none}.typechips:empty{display:none}#list{padding:8px 12px 24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{display:flex;flex-direction:column;gap:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;min-width:0;box-shadow:0 2px 10px rgba(30,25,20,.045)}
+.card img{width:100%;height:118px;object-fit:cover;flex:none;background:#f2efeb}
+.card div{padding:9px 10px 11px;min-width:0}
 .card b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card small{display:block;color:var(--mut)}
 .empty{color:var(--mut);text-align:center;padding:40px 16px}
@@ -58,10 +58,10 @@ h1{margin:0;font-size:24px}
 /* feuilles */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;display:flex;align-items:flex-end}
 .overlay[hidden]{display:none}
-.panel{width:100%;max-height:94dvh;overflow:auto;background:#161618;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.panel{width:100%;max-height:94dvh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));color:var(--txt)}
 .panel img.shot{width:100%;max-height:34dvh;object-fit:cover;border-radius:12px;background:#000}
 label{display:block;margin-top:12px;font-size:13px;color:var(--mut)}
-label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 12px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt)}
+label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 12px;background:#fff;border:1px solid var(--line);border-radius:10px;color:var(--txt)}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .hint{margin:10px 0 2px;font-size:14px;color:var(--mut)}
 .primary,.ghost,.btn{border-radius:12px;padding:13px 14px;border:1px solid var(--line);font-weight:600;cursor:pointer;text-align:center;display:block;text-decoration:none}
@@ -85,7 +85,7 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
     <label class="btn">Ouvrir l'appareil photo<input id="fileCam" type="file" accept="image/*" capture="environment" hidden></label>
   </div>
   <div class="camBar">
-    <label class="side" title="Choisir une photo existante">🖼️<input id="fileGal" type="file" accept="image/*" hidden></label>
+    <span class="side" style="visibility:hidden"></span>
     <button id="shutter" aria-label="Prendre la photo"></button>
     <span class="side" style="visibility:hidden"></span>
   </div>
@@ -101,6 +101,7 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
   <input id="q" type="search" placeholder="Rechercher : nom, quartier, ville, pays, plat…">
   <div id="cities" class="chips"></div>
   <div id="dists" class="chips"></div>
+  <div id="types" class="typechips"></div>
   <div id="list"></div>
 </section>
 
@@ -113,9 +114,9 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
 </section>
 
 <nav>
-  <button data-v="cam" class="on"><span>📷</span>Photo</button>
   <button data-v="list"><span>📖</span>Répertoire</button>
-  <button data-v="map"><span>🗺️</span>Map</button>
+  <button data-v="cam" class="on"><span>📷</span>Photo</button>
+  <button data-v="map"><span>🗺️</span>Carte</button>
 </nav>
 
 <div id="sheet" class="overlay" hidden>
@@ -130,6 +131,7 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
       <label>Ville<input id="iCity" autocomplete="off"></label>
     </div>
     <label>Pays<input id="iCountry" autocomplete="off"></label>
+    <label>Type de restaurant<input id="iType" autocomplete="off" placeholder="Italien, japonais, tapas…"></label>
     <label>Site web<input id="iWeb" type="url" autocomplete="off"></label>
     <label>Menu / notes<textarea id="iMenu" rows="5" placeholder="Plats, prix, envies… ou lance la lecture du texte de la photo"></textarea></label>
     <div class="stack">
@@ -153,7 +155,7 @@ const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u030
 
 let items = [], me = null, draft = null, suggData = [];
 let map = null, markers = [], meMarker = null;
-let selCity = '', selDist = '', view = 'cam', stream = null;
+let selCity = '', selDist = '', selType = '', view = 'cam', stream = null;
 
 /* ---------- stockage (IndexedDB) ---------- */
 const DB = {
@@ -233,7 +235,6 @@ function fromFile(input) {
   img.src = URL.createObjectURL(f);
 }
 $('#fileCam').onchange = e => fromFile(e.target);
-$('#fileGal').onchange = e => fromFile(e.target);
 
 /* ---------- géocodage & recherche autour de soi ---------- */
 async function reverse(lat, lon) {
@@ -263,7 +264,7 @@ async function nearby(lat, lon) {
 }
 
 /* ---------- feuille « nouveau resto » ---------- */
-const fields = { name: '#iName', address: '#iAddr', district: '#iDist', city: '#iCity', country: '#iCountry', website: '#iWeb', menu: '#iMenu' };
+const fields = { name: '#iName', address: '#iAddr', district: '#iDist', city: '#iCity', country: '#iCountry', type: '#iType', website: '#iWeb', menu: '#iMenu' };
 function fillForm(d) { for (const k in fields) $(fields[k]).value = d[k] || ''; }
 function setIfEmpty(k, v) { const el = $(fields[k]); if (v && !el.value.trim()) el.value = v; }
 function setStatus(t) { $('#status').textContent = t; }
@@ -286,6 +287,7 @@ function closeSheet() {
 async function newFromImage(photo, posP, fromGallery) {
   const d = { photo, lat: null, lon: null };
   openSheet(d);
+  enrichRestaurant(d).catch(() => {});
   setStatus('📍 Localisation en cours…');
   const pos = await posP;
   if (draft !== d) return;
@@ -332,6 +334,27 @@ $('#btnOcr').onclick = async () => {
   btn.disabled = false;
 };
 
+
+async function callEnrichment(payload) {
+  const r = await fetch('/.netlify/functions/enrich-resto', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || 'Enrichissement indisponible');
+  return data;
+}
+async function enrichRestaurant(d) {
+  setStatus('✨ L’IA analyse la photo et recherche des informations en ligne…');
+  try {
+    const data=await callEnrichment({photo:d.photo,name:$('#iName').value,address:$('#iAddr').value,city:$('#iCity').value});
+    if(draft!==d) return;
+    if(data.type) { d.type=data.type; $('#iType').value=data.type; }
+    if(data.name) setIfEmpty('name',data.name);
+    if(data.website) setIfEmpty('website',data.website);
+    if(data.facadeImageUrl) d.facadePhoto=data.facadeImageUrl;
+    if(data.menuUrl) d.menuUrl=data.menuUrl;
+    setStatus(data.type ? '✨ Type détecté : '+data.type+'. Vérifie les informations avant d’enregistrer.' : 'Analyse terminée : vérifie les informations.');
+  } catch(e) { setStatus('ℹ️ Analyse IA non configurée pour le moment. Tu peux compléter la fiche manuellement.'); }
+}
+
 $('#btnCancel').onclick = closeSheet;
 $('#btnSave').onclick = async () => {
   const rec = {
@@ -354,29 +377,32 @@ function renderList() {
   const cities = [...new Set(items.map(i => i.city).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   if (selCity && !cities.includes(selCity)) selCity = '';
   const dists = selCity ? [...new Set(items.filter(i => i.city === selCity).map(i => i.district).filter(Boolean))].sort((a, b) => a.localeCompare(b)) : [];
+  const types = [...new Set(items.map(i => i.type).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  if (selType && !types.includes(selType)) selType = '';
   if (selDist && !dists.includes(selDist)) selDist = '';
   const chip = (type, val, label, on) => `<button class="chip${on ? ' on' : ''}" data-${type}="${esc(val)}">${esc(label)}</button>`;
   $('#cities').innerHTML = cities.length ? chip('city', '', 'Toutes', !selCity) + cities.map(c => chip('city', c, c, c === selCity)).join('') : '';
   $('#dists').innerHTML = dists.length ? chip('dist', '', 'Tous les quartiers', !selDist) + dists.map(d => chip('dist', d, d, d === selDist)).join('') : '';
+  $('#types').innerHTML = types.length ? chip('type', '', 'Tous les types', !selType) + types.map(t => chip('type', t, t, t === selType)).join('') : '';
 
   const q = norm($('#q').value.trim());
   const res = items
-    .filter(i => (!selCity || i.city === selCity) && (!selDist || i.district === selDist) &&
+     .filter(i => (!selCity || i.city === selCity) && (!selDist || i.district === selDist) && (!selType || i.type === selType) &&
       (!q || norm([i.name, i.address, i.district, i.city, i.country, i.menu].join(' ')).includes(q)))
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   $('#list').innerHTML = res.length ? res.map(i => `
     <article class="card" data-id="${esc(i.id)}">
-      <img src="${i.photo}" alt="">
+      <img src="${esc(i.facadePhoto || i.photo)}" alt="">
       <div><b>${esc(i.name)}</b>
-        <small>${esc([i.district, i.city].filter(Boolean).join(' · ') || 'Lieu inconnu')}</small>
-        <small>${esc(i.country)}</small></div>
+        <small>${esc([i.type, i.district, i.city].filter(Boolean).join(' · ') || 'Type et lieu à compléter')}</small></div>
     </article>`).join('')
     : `<div class="empty">${items.length ? 'Aucun résultat.' : 'Aucun restaurant enregistré pour l\'instant.<br>Prends ton premier resto en photo 📷'}</div>`;
 }
 $('#q').oninput = renderList;
 $('#cities').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selCity = b.dataset.city; selDist = ''; renderList(); };
 $('#dists').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selDist = b.dataset.dist; renderList(); };
+$('#types').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selType = b.dataset.type; renderList(); };
 $('#list').onclick = e => { const c = e.target.closest('.card'); if (c) openDetail(c.dataset.id); };
 
 function openDetail(id) {
@@ -386,13 +412,16 @@ function openDetail(id) {
   $('#detailBody').innerHTML = `
     <img class="shot" src="${i.photo}" alt="">
     <h2>${esc(i.name)}</h2>
+    ${i.type ? `<p>🍽️ ${esc(i.type)}</p>` : ''}
     ${place ? `<p>📍 ${esc(place)}${i.country ? ', ' + esc(i.country) : ''}</p>` : (i.country ? `<p>${esc(i.country)}</p>` : '')}
     ${i.address ? `<p>${esc(i.address)}</p>` : ''}
     ${web ? `<p><a href="${esc(web)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(i.website)}</a></p>` : ''}
     ${i.menu ? `<pre>${esc(i.menu)}</pre>` : ''}
+    ${i.menuUrl ? `<p><a href="${esc(i.menuUrl)}" target="_blank" rel="noopener" style="color:var(--acc)">📖 Consulter le menu en ligne</a></p>` : ''}
     <div class="stack">
       ${i.lat != null ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${i.lat},${i.lon}">🧭 Itinéraire</a>
       <button class="ghost" id="dMap">🗺️ Voir sur la map</button>` : ''}
+      <button class="ghost" id="dMenu">🌐 Rechercher le menu avec l’IA</button>
       <button class="ghost" id="dEdit">✏️ Modifier</button>
       <button class="ghost danger" id="dDel">🗑️ Supprimer</button>
       <button class="ghost" id="dClose">Fermer</button>
@@ -400,6 +429,7 @@ function openDetail(id) {
   $('#detail').hidden = false;
   $('#detailBody').scrollTop = 0;
   $('#dClose').onclick = () => $('#detail').hidden = true;
+  $('#dMenu').onclick = async () => { const b=$('#dMenu'); b.disabled=true; b.textContent='Recherche du menu…'; try { const data=await callEnrichment({name:i.name,address:i.address,city:i.city,type:i.type,findMenu:true}); if(data.menuUrl||data.menuText){i.menuUrl=data.menuUrl||i.menuUrl;i.menu=data.menuText||i.menu;await DB.put(i);items=await DB.all();openDetail(i.id);toast('Recherche terminée ✔︎');} else toast('Aucun menu fiable trouvé'); } catch(e){toast('IA indisponible : vérifie la clé API Netlify');} };
   $('#dEdit').onclick = () => { $('#detail').hidden = true; openSheet({ ...i }); setStatus('Modification de la fiche.'); };
   $('#dDel').onclick = async () => {
     if (!confirm('Supprimer « ' + i.name + ' » ?')) return;
