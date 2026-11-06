@@ -9,6 +9,16 @@ const json = (statusCode, body) => ({
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Access-Control-Allow-Origin": "*" } };
+  // Proxy Google Places photo bytes so the private Google API key is never exposed in the browser.
+  if (event.httpMethod === "GET" && event.queryStringParameters?.photo) {
+    if (!process.env.GOOGLE_MAPS_API_KEY) return json(503, { error: "GOOGLE_MAPS_API_KEY is not configured" });
+    const resource = event.queryStringParameters.photo;
+    if (!/^places\\/[A-Za-z0-9_-]+\\/photos\\/[A-Za-z0-9_-]+$/.test(resource)) return json(400, { error: "Invalid photo reference" });
+    const photoRes = await fetch(`https://places.googleapis.com/v1/${resource}/media?maxWidthPx=1000&key=${process.env.GOOGLE_MAPS_API_KEY}`);
+    if (!photoRes.ok) return json(502, { error: "Google Places photo unavailable" });
+    const bytes = Buffer.from(await photoRes.arrayBuffer());
+    return { statusCode: 200, headers: { "Content-Type": photoRes.headers.get("content-type") || "image/jpeg", "Cache-Control": "public, max-age=86400" }, body: bytes.toString("base64"), isBase64Encoded: true };
+  }
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
   if (!process.env.OPENAI_API_KEY) return json(503, { error: "OPENAI_API_KEY is not configured in Netlify" });
 
