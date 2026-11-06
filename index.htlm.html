@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Restos">
+<meta name="theme-color" content="#0f0f10">
+<title>Resto Notes</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0f0f10;--card:#1b1b1e;--line:#2c2c31;--txt:#f3f3f3;--mut:#9a9aa3;--acc:#ff6b3d;--nav:60px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+.view{display:none;position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));overflow:auto}
+.view.active{display:block}
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#151517;border-top:1px solid var(--line);display:flex;z-index:900}
+nav button{flex:1;background:none;border:0;color:var(--mut);font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button span{font-size:22px}
+nav button.on{color:var(--acc)}
+/* caméra */
+#v-cam{overflow:hidden;background:#000}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#camErr{position:absolute;left:16px;right:16px;top:30%;text-align:center;color:var(--mut)}
+#camErr .btn{margin-top:12px}
+.camBar{position:absolute;left:0;right:0;bottom:24px;display:flex;align-items:center;justify-content:space-around}
+.side{width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer}
+#shutter{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:rgba(255,255,255,.85);box-shadow:0 0 0 3px rgba(0,0,0,.3)}
+#shutter:active{transform:scale(.93)}
+/* liste */
+header{display:flex;align-items:center;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 16px 6px}
+h1{margin:0;font-size:24px}
+.hbtn{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-left:6px;cursor:pointer;display:inline-block}
+#q{display:block;width:calc(100% - 32px);margin:8px 16px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px;scrollbar-width:none}
+.chips:empty{display:none}
+.chip{flex:none;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--txt);font-size:14px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#list{padding:8px 16px 24px;display:grid;gap:10px}
+.card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer}
+.card img{width:92px;height:92px;object-fit:cover;flex:none;background:#000}
+.card div{padding:10px 10px 10px 0;min-width:0}
+.card b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card small{display:block;color:var(--mut)}
+.empty{color:var(--mut);text-align:center;padding:40px 16px}
+/* carte */
+#v-map{overflow:hidden}
+#map{position:absolute;inset:0}
+.mapBtns{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:800;display:grid;gap:8px}
+.mapBtns button{background:#fff;color:#111;border:0;border-radius:12px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:600}
+.pin{width:34px;height:34px;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:var(--acc);border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.pin{font-size:0}
+.pin::after{content:"🍽️";font-size:16px;transform:rotate(45deg)}
+.leaflet-popup-content a{color:#d4430f;font-weight:600}
+/* feuilles */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;display:flex;align-items:flex-end}
+.overlay[hidden]{display:none}
+.panel{width:100%;max-height:94dvh;overflow:auto;background:#161618;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.panel img.shot{width:100%;max-height:34dvh;object-fit:cover;border-radius:12px;background:#000}
+label{display:block;margin-top:12px;font-size:13px;color:var(--mut)}
+label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 12px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.hint{margin:10px 0 2px;font-size:14px;color:var(--mut)}
+.primary,.ghost,.btn{border-radius:12px;padding:13px 14px;border:1px solid var(--line);font-weight:600;cursor:pointer;text-align:center;display:block;text-decoration:none}
+.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.ghost,.btn{background:var(--card);color:var(--txt)}
+.danger{color:#ff6b6b}
+.stack{display:grid;gap:10px;margin-top:14px}
+#detailBody h2{margin:12px 0 2px}
+#detailBody p{margin:4px 0;color:var(--mut)}
+#detailBody pre{white-space:pre-wrap;font:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+#toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:999px;z-index:3000;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<section id="v-cam" class="view active">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="camErr" hidden>
+    <div>📷 L'appareil photo n'est pas accessible ici.<br>Autorise-le dans le navigateur, ou utilise le bouton ci-dessous.</div>
+    <label class="btn">Ouvrir l'appareil photo<input id="fileCam" type="file" accept="image/*" capture="environment" hidden></label>
+  </div>
+  <div class="camBar">
+    <label class="side" title="Choisir une photo existante">🖼️<input id="fileGal" type="file" accept="image/*" hidden></label>
+    <button id="shutter" aria-label="Prendre la photo"></button>
+    <span class="side" style="visibility:hidden"></span>
+  </div>
+</section>
+
+<section id="v-list" class="view">
+  <header>
+    <h1>Mes restos</h1>
+    <div>
+      <button class="hbtn" id="btnExport" title="Sauvegarder (fichier)">⬇︎</button><label class="hbtn" title="Importer une sauvegarde">⬆︎<input id="imp" type="file" accept=".json,application/json" hidden></label>
+    </div>
+  </header>
+  <input id="q" type="search" placeholder="Rechercher : nom, quartier, ville, pays, plat…">
+  <div id="cities" class="chips"></div>
+  <div id="dists" class="chips"></div>
+  <div id="list"></div>
+</section>
+
+<section id="v-map" class="view">
+  <div id="map"></div>
+  <div class="mapBtns">
+    <button id="btnMe">📍 Ma position</button>
+    <button id="btnAll">🗺️ Tout voir</button>
+  </div>
+</section>
+
+<nav>
+  <button data-v="cam" class="on"><span>📷</span>Photo</button>
+  <button data-v="list"><span>📖</span>Répertoire</button>
+  <button data-v="map"><span>🗺️</span>Map</button>
+</nav>
+
+<div id="sheet" class="overlay" hidden>
+  <div class="panel">
+    <img id="shotImg" class="shot" alt="">
+    <div id="status" class="hint"></div>
+    <div id="sugg" class="chips" style="padding:4px 0"></div>
+    <label>Nom du restaurant<input id="iName" autocomplete="off"></label>
+    <label>Adresse<input id="iAddr" autocomplete="off"></label>
+    <div class="row">
+      <label>Quartier<input id="iDist" autocomplete="off"></label>
+      <label>Ville<input id="iCity" autocomplete="off"></label>
+    </div>
+    <label>Pays<input id="iCountry" autocomplete="off"></label>
+    <label>Site web<input id="iWeb" type="url" autocomplete="off"></label>
+    <label>Menu / notes<textarea id="iMenu" rows="5" placeholder="Plats, prix, envies… ou lance la lecture du texte de la photo"></textarea></label>
+    <div class="stack">
+      <button id="btnOcr" class="ghost">🔍 Lire le texte de la photo (enseigne, menu)</button>
+      <div class="row">
+        <button id="btnCancel" class="ghost">Annuler</button>
+        <button id="btnSave" class="primary">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="detail" class="overlay" hidden><div class="panel" id="detailBody"></div></div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+let items = [], me = null, draft = null, suggData = [];
+let map = null, markers = [], meMarker = null;
+let selCity = '', selDist = '', view = 'cam', stream = null;
+
+/* ---------- stockage (IndexedDB) ---------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('resto-notes', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('r', { keyPath: 'id' });
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  store(mode) { return this.db.transaction('r', mode).objectStore('r'); },
+  all() { return new Promise(res => { const q = this.store('readonly').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); }); },
+  put(o) { return new Promise((res, rej) => { const q = this.store('readwrite').put(o); q.onsuccess = () => res(); q.onerror = () => rej(q.error); }); },
+  del(id) { return new Promise(res => { const q = this.store('readwrite').delete(id); q.onsuccess = () => res(); q.onerror = () => res(); }); }
+};
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- navigation ---------- */
+function showView(v) {
+  view = v;
+  document.querySelectorAll('.view').forEach(e => e.classList.toggle('active', e.id === 'v-' + v));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  if (v === 'cam') startCam(); else stopCam();
+  if (v === 'list') renderList();
+  if (v === 'map') initMap();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showView(b.dataset.v));
+
+/* ---------- caméra ---------- */
+async function startCam() {
+  if (stream) return;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }, audio: false });
+    $('#video').srcObject = stream;
+    $('#camErr').hidden = true;
+  } catch (e) {
+    $('#camErr').hidden = false;
+  }
+}
+function stopCam() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+function toDataUrl(src, w, h) {
+  const s = Math.min(1, 1024 / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.75);
+}
+const getPos = () => new Promise((res, rej) => {
+  if (!navigator.geolocation) return rej();
+  navigator.geolocation.getCurrentPosition(
+    p => res({ lat: p.coords.latitude, lon: p.coords.longitude }), rej,
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+});
+
+$('#shutter').onclick = () => {
+  const v = $('#video');
+  if (!v.videoWidth) { toast('Caméra pas prête'); return; }
+  const posP = getPos().catch(() => me);
+  const url = toDataUrl(v, v.videoWidth, v.videoHeight);
+  newFromImage(url, posP, false);
+};
+function fromFile(input) {
+  const f = input.files[0]; input.value = '';
+  if (!f) return;
+  const posP = getPos().catch(() => me);
+  const img = new Image();
+  img.onload = () => { newFromImage(toDataUrl(img, img.naturalWidth, img.naturalHeight), posP, input.id === 'fileGal'); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(f);
+}
+$('#fileCam').onchange = e => fromFile(e.target);
+$('#fileGal').onchange = e => fromFile(e.target);
+
+/* ---------- géocodage & recherche autour de soi ---------- */
+async function reverse(lat, lon) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=fr&zoom=18&lat=${lat}&lon=${lon}`);
+  const a = (await r.json()).address || {};
+  return {
+    address: [a.house_number, a.road].filter(Boolean).join(' '),
+    district: a.suburb || a.neighbourhood || a.city_district || a.quarter || '',
+    city: a.city || a.town || a.village || a.municipality || '',
+    country: a.country || ''
+  };
+}
+function dist(lat1, lon1, lat2, lon2) {
+  const R = 6371000, rad = x => x * Math.PI / 180;
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+async function nearby(lat, lon) {
+  const q = `[out:json][timeout:10];nwr(around:60,${lat},${lon})["name"]["amenity"~"restaurant|cafe|fast_food|bar|pub|ice_cream|food_court"];out center tags 25;`;
+  const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q) });
+  const j = await r.json();
+  return (j.elements || []).map(e => {
+    const la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
+    return { tags: e.tags, d: dist(lat, lon, la, lo) };
+  }).sort((a, b) => a.d - b.d).slice(0, 6);
+}
+
+/* ---------- feuille « nouveau resto » ---------- */
+const fields = { name: '#iName', address: '#iAddr', district: '#iDist', city: '#iCity', country: '#iCountry', website: '#iWeb', menu: '#iMenu' };
+function fillForm(d) { for (const k in fields) $(fields[k]).value = d[k] || ''; }
+function setIfEmpty(k, v) { const el = $(fields[k]); if (v && !el.value.trim()) el.value = v; }
+function setStatus(t) { $('#status').textContent = t; }
+
+function openSheet(d) {
+  draft = d; suggData = [];
+  stopCam();
+  $('#shotImg').src = d.photo;
+  $('#sugg').innerHTML = '';
+  fillForm(d);
+  $('#btnOcr').disabled = false;
+  $('#sheet').hidden = false;
+  $('#sheet .panel').scrollTop = 0;
+}
+function closeSheet() {
+  $('#sheet').hidden = true; draft = null;
+  if (view === 'cam') startCam();
+}
+
+async function newFromImage(photo, posP, fromGallery) {
+  const d = { photo, lat: null, lon: null };
+  openSheet(d);
+  setStatus('📍 Localisation en cours…');
+  const pos = await posP;
+  if (draft !== d) return;
+  if (!pos) { setStatus('⚠️ Position introuvable : remplis les champs à la main.'); return; }
+  d.lat = pos.lat; d.lon = pos.lon;
+  setStatus((fromGallery ? '(Photo importée : ta position actuelle est utilisée.) ' : '') + '🔎 Recherche de l\'adresse et des restos autour…');
+  const [a, n] = await Promise.allSettled([reverse(pos.lat, pos.lon), nearby(pos.lat, pos.lon)]);
+  if (draft !== d) return;
+  if (a.status === 'fulfilled') for (const k of ['address', 'district', 'city', 'country']) setIfEmpty(k, a.value[k]);
+  if (n.status === 'fulfilled' && n.value.length) {
+    suggData = n.value;
+    $('#sugg').innerHTML = suggData.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.tags.name)} · ${Math.round(s.d)} m</button>`).join('');
+    applySuggestion(0, true);
+    setStatus('✅ Vérifie le nom (le plus proche est pré-rempli) ou choisis-en un autre :');
+  } else {
+    setStatus(n.status === 'fulfilled' ? 'Aucun restaurant trouvé à proximité : saisis le nom.' : '⚠️ Recherche des restos impossible (réseau ?) : saisis le nom.');
+  }
+}
+function applySuggestion(i, onlyIfEmpty) {
+  const s = suggData[i]; if (!s) return;
+  const t = s.tags;
+  if (onlyIfEmpty) setIfEmpty('name', t.name); else $('#iName').value = t.name;
+  const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+  if (street && !onlyIfEmpty) $('#iAddr').value = street;
+  const web = t.website || t['contact:website'];
+  if (web) { if (onlyIfEmpty) setIfEmpty('website', web); else $('#iWeb').value = web; }
+  document.querySelectorAll('#sugg .chip').forEach((c, j) => c.classList.toggle('on', j === i));
+}
+$('#sugg').onclick = e => { const b = e.target.closest('.chip'); if (b) applySuggestion(+b.dataset.i, false); };
+
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+$('#btnOcr').onclick = async () => {
+  const btn = $('#btnOcr'); btn.disabled = true;
+  setStatus('🔍 Lecture du texte… (la 1re fois, un modèle est téléchargé, ça peut prendre un moment)');
+  try {
+    if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    const { data } = await Tesseract.recognize(draft.photo, 'fra+eng');
+    const txt = (data.text || '').trim();
+    if (txt) { const m = $('#iMenu'); m.value = (m.value ? m.value + '\n' : '') + txt; setStatus('✅ Texte ajouté dans « Menu / notes » : relis-le et corrige si besoin.'); }
+    else setStatus('Aucun texte lisible sur la photo.');
+  } catch (e) { setStatus('⚠️ Lecture du texte impossible (réseau ?).'); }
+  btn.disabled = false;
+};
+
+$('#btnCancel').onclick = closeSheet;
+$('#btnSave').onclick = async () => {
+  const rec = {
+    ...draft,
+    id: draft.id || Date.now().toString(36),
+    date: draft.date || new Date().toISOString()
+  };
+  for (const k in fields) rec[k] = $(fields[k]).value.trim();
+  if (!rec.name) rec.name = 'Restaurant sans nom';
+  await DB.put(rec);
+  items = await DB.all();
+  closeSheet();
+  toast('Restaurant enregistré ✔︎');
+  if (view === 'list') renderList();
+  if (view === 'map') drawMarkers(false);
+};
+
+/* ---------- répertoire ---------- */
+function renderList() {
+  const cities = [...new Set(items.map(i => i.city).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (selCity && !cities.includes(selCity)) selCity = '';
+  const dists = selCity ? [...new Set(items.filter(i => i.city === selCity).map(i => i.district).filter(Boolean))].sort((a, b) => a.localeCompare(b)) : [];
+  if (selDist && !dists.includes(selDist)) selDist = '';
+  const chip = (type, val, label, on) => `<button class="chip${on ? ' on' : ''}" data-${type}="${esc(val)}">${esc(label)}</button>`;
+  $('#cities').innerHTML = cities.length ? chip('city', '', 'Toutes', !selCity) + cities.map(c => chip('city', c, c, c === selCity)).join('') : '';
+  $('#dists').innerHTML = dists.length ? chip('dist', '', 'Tous les quartiers', !selDist) + dists.map(d => chip('dist', d, d, d === selDist)).join('') : '';
+
+  const q = norm($('#q').value.trim());
+  const res = items
+    .filter(i => (!selCity || i.city === selCity) && (!selDist || i.district === selDist) &&
+      (!q || norm([i.name, i.address, i.district, i.city, i.country, i.menu].join(' ')).includes(q)))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  $('#list').innerHTML = res.length ? res.map(i => `
+    <article class="card" data-id="${esc(i.id)}">
+      <img src="${i.photo}" alt="">
+      <div><b>${esc(i.name)}</b>
+        <small>${esc([i.district, i.city].filter(Boolean).join(' · ') || 'Lieu inconnu')}</small>
+        <small>${esc(i.country)}</small></div>
+    </article>`).join('')
+    : `<div class="empty">${items.length ? 'Aucun résultat.' : 'Aucun restaurant enregistré pour l\'instant.<br>Prends ton premier resto en photo 📷'}</div>`;
+}
+$('#q').oninput = renderList;
+$('#cities').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selCity = b.dataset.city; selDist = ''; renderList(); };
+$('#dists').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selDist = b.dataset.dist; renderList(); };
+$('#list').onclick = e => { const c = e.target.closest('.card'); if (c) openDetail(c.dataset.id); };
+
+function openDetail(id) {
+  const i = items.find(x => x.id === id); if (!i) return;
+  const place = [i.district, i.city].filter(Boolean).join(' · ');
+  const web = /^https?:\/\//i.test(i.website || '') ? i.website : (i.website ? 'https://' + i.website : '');
+  $('#detailBody').innerHTML = `
+    <img class="shot" src="${i.photo}" alt="">
+    <h2>${esc(i.name)}</h2>
+    ${place ? `<p>📍 ${esc(place)}${i.country ? ', ' + esc(i.country) : ''}</p>` : (i.country ? `<p>${esc(i.country)}</p>` : '')}
+    ${i.address ? `<p>${esc(i.address)}</p>` : ''}
+    ${web ? `<p><a href="${esc(web)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(i.website)}</a></p>` : ''}
+    ${i.menu ? `<pre>${esc(i.menu)}</pre>` : ''}
+    <div class="stack">
+      ${i.lat != null ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${i.lat},${i.lon}">🧭 Itinéraire</a>
+      <button class="ghost" id="dMap">🗺️ Voir sur la map</button>` : ''}
+      <button class="ghost" id="dEdit">✏️ Modifier</button>
+      <button class="ghost danger" id="dDel">🗑️ Supprimer</button>
+      <button class="ghost" id="dClose">Fermer</button>
+    </div>`;
+  $('#detail').hidden = false;
+  $('#detailBody').scrollTop = 0;
+  $('#dClose').onclick = () => $('#detail').hidden = true;
+  $('#dEdit').onclick = () => { $('#detail').hidden = true; openSheet({ ...i }); setStatus('Modification de la fiche.'); };
+  $('#dDel').onclick = async () => {
+    if (!confirm('Supprimer « ' + i.name + ' » ?')) return;
+    await DB.del(i.id); items = await DB.all();
+    $('#detail').hidden = true; renderList(); if (map) drawMarkers(false);
+  };
+  const dm = $('#dMap');
+  if (dm) dm.onclick = () => { $('#detail').hidden = true; showView('map'); setTimeout(() => { map.setView([i.lat, i.lon], 17); }, 120); };
+}
+$('#detail').onclick = e => { if (e.target.id === 'detail') $('#detail').hidden = true; };
+
+/* ---------- carte ---------- */
+function initMap() {
+  if (typeof L === 'undefined') { toast('Carte indisponible (réseau ?)'); return; }
+  if (!map) {
+    map = L.map('map', { zoomControl: false }).setView([48.8566, 2.3522], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    map.on('popupopen', e => {
+      const a = e.popup.getElement().querySelector('[data-open]');
+      if (a) a.addEventListener('click', ev => { ev.preventDefault(); openDetail(a.dataset.open); });
+    });
+  }
+  setTimeout(() => { map.invalidateSize(); drawMarkers(true); updateMe(); }, 60);
+}
+function drawMarkers(fit) {
+  if (!map) return;
+  markers.forEach(m => m.remove());
+  markers = items.filter(i => i.lat != null).map(i => {
+    const m = L.marker([i.lat, i.lon], { icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [34, 34], iconAnchor: [17, 30] }) }).addTo(map);
+    m.bindPopup(`<b>${esc(i.name)}</b><br>${esc([i.district, i.city].filter(Boolean).join(' · '))}<br><a href="#" data-open="${esc(i.id)}">Voir la fiche</a>`);
+    return m;
+  });
+  if (fit) fitAll();
+}
+function fitAll() {
+  if (!map) return;
+  const pts = items.filter(i => i.lat != null).map(i => [i.lat, i.lon]);
+  if (me) pts.push([me.lat, me.lon]);
+  if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
+  else if (pts.length === 1) map.setView(pts[0], 15);
+}
+function updateMe() {
+  if (!map || !me) return;
+  if (!meMarker) meMarker = L.circleMarker([me.lat, me.lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#2f80ff', fillOpacity: 1 }).addTo(map);
+  else meMarker.setLatLng([me.lat, me.lon]);
+}
+$('#btnMe').onclick = () => { if (me && map) map.setView([me.lat, me.lon], 16); else toast('Position indisponible : active la localisation'); };
+$('#btnAll').onclick = fitAll;
+
+/* ---------- sauvegarde / import ---------- */
+$('#btnExport').onclick = () => {
+  if (!items.length) { toast('Rien à sauvegarder'); return; }
+  const blob = new Blob([JSON.stringify(items)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'resto-notes-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+};
+$('#imp').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const arr = JSON.parse(await f.text());
+    for (const r of arr) if (r && r.id && r.photo) await DB.put(r);
+    items = await DB.all(); renderList(); toast('Sauvegarde importée ✔︎');
+  } catch (err) { toast('Fichier invalide'); }
+};
+
+/* ---------- démarrage ---------- */
+(async () => {
+  try { await DB.open(); items = await DB.all(); } catch (e) { toast('Stockage indisponible'); }
+  startCam();
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(p => { me = { lat: p.coords.latitude, lon: p.coords.longitude }; updateMe(); }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+  }
+})();
+</script>
+</body>
+</html>
