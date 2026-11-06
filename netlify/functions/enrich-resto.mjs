@@ -28,13 +28,13 @@ export async function handler(event) {
     let imageContent = null;
     if (photo && !findMenu) {
       if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)) return json(400, { error: "Unsupported image format" });
-      imageContent = { type: "input_image", image_url: photo, detail: "low" };
+      imageContent = { type: "input_image", image_url: photo, detail: "high" };
     }
 
     const query = [name, address, city].filter(Boolean).join(", ");
     const task = findMenu
       ? `Find the restaurant's official/current online menu. Restaurant: ${query}. Type: ${type}. Use web search. Return JSON only: {"menuUrl":"the best direct menu URL or empty string","menuText":"short useful summary only if reliably available"}.`
-      : `Identify the restaurant category from the photo if possible (e.g. Japanese, Italian, tapas, French, Mexican, seafood, brunch). If the photo is not sufficient, say empty. If a restaurant name is visible, transcribe it. Use web search only if a name/location is provided to verify details. Return JSON only: {"type":"short category in French or empty","name":"visible/verified restaurant name or empty","website":"official website or empty"}.`;
+      : `This is a live photo taken directly in front of a restaurant. Carefully read the business name from the sign or facade (OCR). Do not guess the cuisine from architecture or decor. If the cuisine is explicitly stated on the sign, you may return it; otherwise leave type empty so it can be verified using Google Places. If a name is visible, transcribe it exactly. Return JSON only: {"name":"business name read from the facade or empty","type":"cuisine/category explicitly evident from the facade or empty","website":""}.`;
 
     const content = [{ type: "input_text", text: task }];
     if (imageContent) content.push(imageContent);
@@ -55,22 +55,42 @@ export async function handler(event) {
     let result = {};
     try { result = JSON.parse(outputText); } catch { result = {}; }
 
-    // Find a polished exterior photo using Google Places when its key is configured.
+    // Vérifie le nom lu sur l'enseigne avec Google Places, en privilégiant la position GPS de la photo.
     if (!findMenu && process.env.GOOGLE_MAPS_API_KEY && (result.name || name)) {
       const placeQuery = [result.name || name, address, city].filter(Boolean).join(", ");
+      const locationBias = Number.isFinite(Number(input.lat)) && Number.isFinite(Number(input.lon))
+        ? { circle: { center: { latitude: Number(input.lat), longitude: Number(input.lon) }, radius: 250 } }
+        : undefined;
       const p = await fetch("https://places.googleapis.com/v1/places:searchText", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": process.env.GOOGLE_MAPS_API_KEY,
-          "X-Goog-FieldMask": "places.displayName,places.photos"
+          "X-Goog-FieldMask": "places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress"
         },
-        body: JSON.stringify({ textQuery: placeQuery, maxResultCount: 1 })
+        body: JSON.stringify({ textQuery: placeQuery, maxResultCount: 3, ...(locationBias ? { locationBias } : {}) })
       });
       if (p.ok) {
         const pd = await p.json();
-        const photoName = pd.places?.[0]?.photos?.[0]?.name;
-        if (photoName) result.facadeImageUrl = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1000&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        const candidates = pd.places || [];
+        const place = candidates[0];
+        if (place) {
+          const typeMap = {
+            italian_restaurant: "Italien", pizza_restaurant: "Pizzeria", japanese_restaurant: "Japonais",
+            sushi_restaurant: "Japonais – Sushi", chinese_restaurant: "Chinois", indian_restaurant: "Indien",
+            mexican_restaurant: "Mexicain", french_restaurant: "Français", thai_restaurant: "Thaïlandais",
+            vietnamese_restaurant: "Vietnamien", korean_restaurant: "Coréen", spanish_restaurant: "Espagnol – Tapas",
+            mediterranean_restaurant: "Méditerranéen", seafood_restaurant: "Fruits de mer", steak_house: "Steakhouse",
+            hamburger_restaurant: "Burger", vegan_restaurant: "Végétarien / Vegan", vegetarian_restaurant: "Végétarien",
+            cafe: "Café / Brunch", bakery: "Boulangerie / Café", bar: "Bar à tapas"
+          };
+          const googleType = place.primaryType || (place.types || []).find(t => typeMap[t]);
+          if (googleType && typeMap[googleType]) result.type = typeMap[googleType];
+          if (place.websiteUri) result.website = place.websiteUri;
+          if (place.displayName?.text && !result.name) result.name = place.displayName.text;
+          const photoName = place.photos?.[0]?.name;
+          if (photoName) result.facadeImageUrl = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1000&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        }
       }
     }
     return json(200, result);
