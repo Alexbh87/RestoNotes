@@ -460,7 +460,7 @@ $('#btnAddResult').onclick=async()=>{
   const rec={
     id:Date.now().toString(36),date:new Date().toISOString(),
     name:p.name,address:p.address||'',city:$('#addCity').value.trim(),
-    district:'',country:'',type:p.type||'',website:p.website||'',
+    district:p.district||'',country:'',type:p.type||'',website:p.website||'',
     menu:'',menuUrl:p.menuUrl||'',photo:p.photo||'',facadePhoto:p.photo||'',
     lat:p.lat??null,lon:p.lon??null
   };
