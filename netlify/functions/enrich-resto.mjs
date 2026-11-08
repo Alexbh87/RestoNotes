@@ -34,7 +34,7 @@ export async function handler(event) {
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY,
-          "X-Goog-FieldMask": "places.id,places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress,places.location,places.googleMapsUri"
+          "X-Goog-FieldMask": "places.id,places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress,places.addressComponents,places.primaryTypeDisplayName,places.location,places.googleMapsUri"
         },
         body: JSON.stringify({ textQuery: q, maxResultCount: 1 })
       });
@@ -51,12 +51,18 @@ export async function handler(event) {
         hamburger_restaurant: "Burger", vegan_restaurant: "Végétarien / Vegan", vegetarian_restaurant: "Végétarien",
         cafe: "Café / Brunch", bakery: "Boulangerie / Café", bar: "Bar à tapas"
       };
-      const googleType = place.primaryType || (place.types || []).find(t => typeMap[t]);
+      const googleType = [place.primaryType, ...(place.types || [])].find(t => typeMap[t]);
+      const districtComponent = (place.addressComponents || []).find(c =>
+        (c.types || []).some(t => ["neighborhood", "sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t))
+      );
+      const district = districtComponent?.longText || districtComponent?.shortText || "";
+      const detectedType = typeMap[googleType] || place.primaryTypeDisplayName?.text || "";
       const photoName = place.photos?.[0]?.name;
       return json(200, {
         name: place.displayName?.text || name,
         address: place.formattedAddress || "",
-        type: typeMap[googleType] || "",
+        type: detectedType,
+        district,
         website: place.websiteUri || "",
         photo: photoName ? "/.netlify/functions/enrich-resto?photo=" + encodeURIComponent(photoName) : "",
         lat: place.location?.latitude ?? null,
