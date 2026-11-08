@@ -52,10 +52,23 @@ export async function handler(event) {
         cafe: "Café / Brunch", bakery: "Boulangerie / Café", bar: "Bar à tapas"
       };
       const googleType = [place.primaryType, ...(place.types || [])].find(t => typeMap[t]);
-      const districtComponent = (place.addressComponents || []).find(c =>
+      const addressComponents = place.addressComponents || [];
+      // À Paris, privilégie toujours le numéro d'arrondissement lorsqu'il est fourni par Google.
+      const arrondissementComponent = addressComponents.find(c => {
+        const value = [c.longText, c.shortText].filter(Boolean).join(" ");
+        const types = c.types || [];
+        return /arrondissement/i.test(value) &&
+          types.some(t => ["sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t));
+      });
+      const arrondissementText = [arrondissementComponent?.longText, arrondissementComponent?.shortText].filter(Boolean).join(" ");
+      const arrondissementMatch = arrondissementText.match(/(?:^|\\D)(\\d{1,2})(?:er|e|ème|eme|st|nd|rd|th)?\\s*(?:e\\s*)?arrondissement|arrondissement\\s*(?:de\\s*)?(?:de\\s*paris\\s*)?(\\d{1,2})/i);
+      const arrondissementNumber = arrondissementMatch ? Number(arrondissementMatch[1] || arrondissementMatch[2]) : null;
+      const districtComponent = addressComponents.find(c =>
         (c.types || []).some(t => ["neighborhood", "sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t))
       );
-      const district = districtComponent?.longText || districtComponent?.shortText || "";
+      const district = arrondissementNumber >= 1 && arrondissementNumber <= 20
+        ? (arrondissementNumber === 1 ? "1er arrondissement" : arrondissementNumber + "e arrondissement")
+        : (districtComponent?.longText || districtComponent?.shortText || "");
       const detectedType = typeMap[googleType] || place.primaryTypeDisplayName?.text || "";
       const photoName = place.photos?.[0]?.name;
       return json(200, {
