@@ -20,7 +20,7 @@ button,input,textarea{font:inherit;color:inherit}
 nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line);display:flex;z-index:900;box-shadow:0 -3px 14px rgba(30,25,20,.05)}
 nav button{flex:1;background:none;border:0;color:var(--mut);font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 nav button span{font-size:22px}
-nav button.on{color:var(--acc)}nav button[data-v="cam"]{color:#fff;background:var(--acc);border-radius:18px;margin:7px 22px;font-weight:700}nav button[data-v="cam"] span{font-size:24px}
+nav button.on{color:var(--acc)}nav button[data-v="cam"]{color:#fff;background:var(--acc);border-radius:18px;margin:7px 8px;font-weight:700}nav button[data-v="cam"] span{font-size:24px}
 /* ajout manuel */
 .addWrap{padding:0 18px 28px;max-width:620px;margin:0 auto}
 .addWrap label{margin-top:16px}
@@ -442,6 +442,14 @@ $('#btnFind').onclick=async()=>{
     if(!r.ok) throw new Error(data.error || 'Recherche indisponible');
     if(!data.name) {setAddStatus('Aucun résultat fiable trouvé. Vérifie le nom ou la ville.');return;}
     showAddCandidate(data);
+    setAddStatus('Fiche trouvée. Recherche du menu en ligne…');
+    // Menu search is optional: the restaurant can still be added if AI/menu lookup is unavailable.
+    try{
+      const mr=await fetch('/.netlify/functions/enrich-resto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({findMenu:true,name:data.name,address:data.address,city:city,type:data.type})});
+      const md=await mr.json();
+      if(md.menuUrl){addCandidate.menuUrl=md.menuUrl;$('#addMenu').href=md.menuUrl;$('#addMenu').hidden=false;}
+      else if(data.website){$('#addMenu').href=data.website;$('#addMenu').textContent='Site / menu du restaurant';$('#addMenu').hidden=false;}
+    }catch(e){if(data.website){$('#addMenu').href=data.website;$('#addMenu').textContent='Site du restaurant';$('#addMenu').hidden=false;}}
     setAddStatus('Vérifie que c’est bien le bon établissement avant de l’ajouter.');
   }catch(e){setAddStatus('Recherche impossible : '+(e.message || 'réessaie dans un instant.'));}
   finally{btn.disabled=false;}
