@@ -20,11 +20,52 @@ export async function handler(event) {
     return { statusCode: 200, headers: { "Content-Type": photoRes.headers.get("content-type") || "image/jpeg", "Cache-Control": "public, max-age=86400" }, body: bytes.toString("base64"), isBase64Encoded: true };
   }
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-  if (!process.env.OPENAI_API_KEY) return json(503, { error: "OPENAI_API_KEY is not configured in Netlify" });
 
   try {
     const input = JSON.parse(event.body || "{}");
-    const { photo, name = "", address = "", city = "", type = "", findMenu = false } = input;
+    const { photo, name = "", address = "", city = "", type = "", findMenu = false, lookup = false } = input;
+
+    // Manual Add tab: look up a restaurant by name and city using Google Places.
+    if (lookup) {
+      if (!process.env.GOOGLE_MAPS_API_KEY) return json(503, { error: "GOOGLE_MAPS_API_KEY is not configured in Netlify" });
+      const q = [name, city].filter(Boolean).join(", ");
+      const placesRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": process.env.GOOGLE_MAPS_API_KEY,
+          "X-Goog-FieldMask": "places.id,places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress,places.location,places.googleMapsUri"
+        },
+        body: JSON.stringify({ textQuery: q, maxResultCount: 1 })
+      });
+      const placesData = await placesRes.json();
+      if (!placesRes.ok) return json(502, { error: placesData.error?.message || "Google Places search failed" });
+      const place = placesData.places?.[0];
+      if (!place) return json(200, { name: "" });
+      const typeMap = {
+        italian_restaurant: "Italien", pizza_restaurant: "Pizzeria", japanese_restaurant: "Japonais",
+        sushi_restaurant: "Japonais – Sushi", chinese_restaurant: "Chinois", indian_restaurant: "Indien",
+        mexican_restaurant: "Mexicain", french_restaurant: "Français", thai_restaurant: "Thaïlandais",
+        vietnamese_restaurant: "Vietnamien", korean_restaurant: "Coréen", spanish_restaurant: "Espagnol – Tapas",
+        mediterranean_restaurant: "Méditerranéen", seafood_restaurant: "Fruits de mer", steak_house: "Steakhouse",
+        hamburger_restaurant: "Burger", vegan_restaurant: "Végétarien / Vegan", vegetarian_restaurant: "Végétarien",
+        cafe: "Café / Brunch", bakery: "Boulangerie / Café", bar: "Bar à tapas"
+      };
+      const googleType = place.primaryType || (place.types || []).find(t => typeMap[t]);
+      const photoName = place.photos?.[0]?.name;
+      return json(200, {
+        name: place.displayName?.text || name,
+        address: place.formattedAddress || "",
+        type: typeMap[googleType] || "",
+        website: place.websiteUri || "",
+        photo: photoName ? "/.netlify/functions/enrich-resto?photo=" + encodeURIComponent(photoName) : "",
+        lat: place.location?.latitude ?? null,
+        lon: place.location?.longitude ?? null,
+        mapsUrl: place.googleMapsUri || ""
+      });
+    }
+
+    if (!process.env.OPENAI_API_KEY) return json(503, { error: "OPENAI_API_KEY is not configured in Netlify" });
     let imageContent = null;
     if (photo && !findMenu) {
       if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)) return json(400, { error: "Unsupported image format" });
