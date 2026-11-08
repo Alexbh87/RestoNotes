@@ -1,6 +1,6 @@
 // Netlify Function: AI enrichment for RestoNotes.
 // Configure OPENAI_API_KEY in Netlify environment variables.
-// Optional: GOOGLE_MAPS_API_KEY enables a real Google Places facade photo.
+// Optional: GOOGLE_PLACES_API_KEY enables server-side Google Places search and facade photos.
 const json = (statusCode, body) => ({
   statusCode,
   headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -11,10 +11,10 @@ export async function handler(event) {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Access-Control-Allow-Origin": "*" } };
   // Proxy Google Places photo bytes so the private Google API key is never exposed in the browser.
   if (event.httpMethod === "GET" && event.queryStringParameters?.photo) {
-    if (!process.env.GOOGLE_MAPS_API_KEY) return json(503, { error: "GOOGLE_MAPS_API_KEY is not configured" });
+    if (!process.env.GOOGLE_PLACES_API_KEY) return json(503, { error: "GOOGLE_PLACES_API_KEY is not configured" });
     const resource = event.queryStringParameters.photo;
     if (!/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(resource)) return json(400, { error: "Invalid photo reference" });
-    const photoRes = await fetch(`https://places.googleapis.com/v1/${resource}/media?maxWidthPx=1000&key=${process.env.GOOGLE_MAPS_API_KEY}`);
+    const photoRes = await fetch(`https://places.googleapis.com/v1/${resource}/media?maxWidthPx=1000&key=${process.env.GOOGLE_PLACES_API_KEY}`);
     if (!photoRes.ok) return json(502, { error: "Google Places photo unavailable" });
     const bytes = Buffer.from(await photoRes.arrayBuffer());
     return { statusCode: 200, headers: { "Content-Type": photoRes.headers.get("content-type") || "image/jpeg", "Cache-Control": "public, max-age=86400" }, body: bytes.toString("base64"), isBase64Encoded: true };
@@ -27,13 +27,13 @@ export async function handler(event) {
 
     // Manual Add tab: look up a restaurant by name and city using Google Places.
     if (lookup) {
-      if (!process.env.GOOGLE_MAPS_API_KEY) return json(503, { error: "GOOGLE_MAPS_API_KEY is not configured in Netlify" });
+      if (!process.env.GOOGLE_PLACES_API_KEY) return json(503, { error: "GOOGLE_PLACES_API_KEY is not configured in Netlify" });
       const q = [name, city].filter(Boolean).join(", ");
       const placesRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Goog-Api-Key": process.env.GOOGLE_MAPS_API_KEY,
+          "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY,
           "X-Goog-FieldMask": "places.id,places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress,places.location,places.googleMapsUri"
         },
         body: JSON.stringify({ textQuery: q, maxResultCount: 1 })
@@ -97,16 +97,16 @@ export async function handler(event) {
     try { result = JSON.parse(outputText); } catch { result = {}; }
 
     // Vérifie le nom lu sur l'enseigne avec Google Places, en privilégiant la position GPS de la photo.
-    if (!findMenu && process.env.GOOGLE_MAPS_API_KEY && (result.name || name)) {
+    if (!findMenu && process.env.GOOGLE_PLACES_API_KEY && (result.name || name)) {
       const placeQuery = [result.name || name, address, city].filter(Boolean).join(", ");
-      const locationBias = Number.isFinite(Number(input.lat)) && Number.isFinite(Number(input.lon))
+      const locationBias = input.lat != null && input.lon != null && Number.isFinite(Number(input.lat)) && Number.isFinite(Number(input.lon))
         ? { circle: { center: { latitude: Number(input.lat), longitude: Number(input.lon) }, radius: 250 } }
         : undefined;
       const p = await fetch("https://places.googleapis.com/v1/places:searchText", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Goog-Api-Key": process.env.GOOGLE_MAPS_API_KEY,
+          "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY,
           "X-Goog-FieldMask": "places.displayName,places.primaryType,places.types,places.websiteUri,places.photos,places.formattedAddress"
         },
         body: JSON.stringify({ textQuery: placeQuery, maxResultCount: 3, ...(locationBias ? { locationBias } : {}) })
@@ -130,7 +130,7 @@ export async function handler(event) {
           if (place.websiteUri) result.website = place.websiteUri;
           if (place.displayName?.text && !result.name) result.name = place.displayName.text;
           const photoName = place.photos?.[0]?.name;
-          if (photoName) result.facadeImageUrl = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1000&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+          if (photoName) result.facadeImageUrl = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1000&key=${process.env.GOOGLE_PLACES_API_KEY}`;
         }
       }
     }
