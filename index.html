@@ -659,16 +659,6 @@ $('#btnExport').onclick = () => {
   a.download = 'resto-notes-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
 };
-$('#imp').onchange = async e => {
-  const f = e.target.files[0]; e.target.value = '';
-  if (!f) return;
-  try {
-    const arr = JSON.parse(await f.text());
-    for (const r of arr) if (r && r.id && r.photo) await DB.put(r);
-    items = await DB.all(); renderList(); toast('Sauvegarde importée ✔︎');
-  } catch (err) { toast('Fichier invalide'); }
-};
-
 /* ---------- démarrage ---------- */
 (async () => {
   try { await DB.open(); items = await DB.all(); } catch (e) { toast('Stockage indisponible'); }
