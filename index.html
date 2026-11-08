@@ -21,6 +21,19 @@ nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-are
 nav button{flex:1;background:none;border:0;color:var(--mut);font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 nav button span{font-size:22px}
 nav button.on{color:var(--acc)}nav button[data-v="cam"]{color:#fff;background:var(--acc);border-radius:18px;margin:7px 22px;font-weight:700}nav button[data-v="cam"] span{font-size:24px}
+/* ajout manuel */
+.addWrap{padding:0 18px 28px;max-width:620px;margin:0 auto}
+.addWrap label{margin-top:16px}
+.addWrap input{font-size:16px;padding:14px}
+.addFind{width:100%;margin-top:20px}
+.addResult{margin-top:16px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 3px 14px rgba(30,25,20,.06)}
+.addResult[hidden]{display:none}
+.addResult>img{display:block;width:100%;height:210px;object-fit:cover;background:#f2efeb}
+.addInfo{padding:14px 16px}
+.addInfo h2{margin:0 0 6px;font-size:21px}
+.addInfo p{margin:5px 0;color:var(--mut)}
+.addInfo a{display:inline-block;color:var(--acc);margin:8px 14px 0 0;font-weight:600}
+#btnAddResult{width:calc(100% - 28px);margin:0 14px 14px}
 /* caméra */
 #v-cam{overflow:hidden;background:#fff}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -104,6 +117,27 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
   <div id="list"></div>
 </section>
 
+<section id="v-add" class="view">
+  <header><h1>Ajouter un restaurant</h1></header>
+  <div class="addWrap">
+    <p class="hint">Indique son nom et sa ville. RestoNotes recherche sa fiche et te la présente avant de l'ajouter.</p>
+    <label>Nom du restaurant<input id="addName" placeholder="Ex. Can Fisher" autocomplete="off"></label>
+    <label>Ville<input id="addCity" placeholder="Ex. Barcelone" autocomplete="off"></label>
+    <button id="btnFind" class="primary addFind">✨ Rechercher le restaurant</button>
+    <div id="addStatus" class="hint" aria-live="polite"></div>
+    <article id="addResult" class="addResult" hidden>
+      <img id="addPhoto" alt="Photo du restaurant">
+      <div class="addInfo">
+        <h2 id="addTitle"></h2>
+        <p id="addType"></p><p id="addAddress"></p>
+        <a id="addWebsite" target="_blank" rel="noopener" hidden>Site officiel</a>
+        <a id="addMenu" target="_blank" rel="noopener" hidden>Voir le menu</a>
+      </div>
+      <button id="btnAddResult" class="primary">＋ Ajouter à mon RestoNotes</button>
+    </article>
+  </div>
+</section>
+
 <section id="v-map" class="view">
   <div id="map"></div>
   <div class="mapBtns">
@@ -115,6 +149,7 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
 <nav>
   <button data-v="list"><span>📖</span>Répertoire</button>
   <button data-v="cam" class="on"><span>📷</span>Photo</button>
+  <button data-v="add"><span>＋</span>Ajout</button>
   <button data-v="map"><span>🗺️</span>Carte</button>
 </nav>
 
@@ -379,6 +414,50 @@ $('#btnSave').onclick = async () => {
   toast('Restaurant enregistré ✔︎');
   if (view === 'list') renderList();
   if (view === 'map') drawMarkers(false);
+};
+
+/* ---------- ajout par nom + ville ---------- */
+let addCandidate = null;
+function setAddStatus(message){ $('#addStatus').textContent=message; }
+function showAddCandidate(place){
+  addCandidate=place;
+  $('#addTitle').textContent=place.name || 'Restaurant';
+  $('#addType').textContent=place.type ? '🍽️ '+place.type : '';
+  $('#addAddress').textContent=place.address ? '📍 '+place.address : '';
+  $('#addPhoto').src=place.photo || '';
+  $('#addWebsite').hidden=!place.website;
+  if(place.website) $('#addWebsite').href=place.website;
+  $('#addMenu').hidden=!place.menuUrl;
+  if(place.menuUrl) $('#addMenu').href=place.menuUrl;
+  $('#addResult').hidden=false;
+}
+$('#btnFind').onclick=async()=>{
+  const name=$('#addName').value.trim(), city=$('#addCity').value.trim();
+  if(!name || !city){setAddStatus('Indique le nom du restaurant et la ville.');return;}
+  const btn=$('#btnFind'); btn.disabled=true; $('#addResult').hidden=true; addCandidate=null;
+  setAddStatus('✨ Recherche du restaurant, de sa photo et de son menu…');
+  try{
+    const r=await fetch('/.netlify/functions/enrich-resto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lookup:true,name,city})});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error || 'Recherche indisponible');
+    if(!data.name) {setAddStatus('Aucun résultat fiable trouvé. Vérifie le nom ou la ville.');return;}
+    showAddCandidate(data);
+    setAddStatus('Vérifie que c’est bien le bon établissement avant de l’ajouter.');
+  }catch(e){setAddStatus('Recherche impossible : '+(e.message || 'réessaie dans un instant.'));}
+  finally{btn.disabled=false;}
+};
+$('#btnAddResult').onclick=async()=>{
+  if(!addCandidate)return;
+  const p=addCandidate;
+  const rec={
+    id:Date.now().toString(36),date:new Date().toISOString(),
+    name:p.name,address:p.address||'',city:$('#addCity').value.trim(),
+    district:'',country:'',type:p.type||'',website:p.website||'',
+    menu:'',menuUrl:p.menuUrl||'',photo:p.photo||'',facadePhoto:p.photo||'',
+    lat:p.lat??null,lon:p.lon??null
+  };
+  try{await DB.put(rec);items=await DB.all();toast('Restaurant ajouté au répertoire et à la carte ✔︎');addCandidate=null;$('#addResult').hidden=true;$('#addName').value='';$('#addCity').value='';setAddStatus('Ton restaurant est enregistré.');}
+  catch(e){toast('Enregistrement impossible');}
 };
 
 /* ---------- répertoire ---------- */
