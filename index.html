@@ -105,7 +105,7 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
 
 <section id="v-list" class="view">
   <header>
-    <h1>Mes restos</h1>
+    <h1>À tester</h1>
     <div>
       <button class="hbtn" id="btnExport" title="Sauvegarder (fichier)">⬇︎</button>
     </div>
@@ -117,6 +117,12 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
   <div id="list"></div>
 </section>
 
+<section id="v-top" class="view">
+<header><h1>Mon Top</h1></header>
+<input id="topQ" type="search" placeholder="Rechercher par nom…">
+<div id="topCities" class="chips"></div><div id="topDists" class="chips"></div><div id="topTypes" class="typechips"></div>
+<div style="padding:10px 16px"><button id="btnShareTop" class="primary" style="width:100%">✉️ Partager cette sélection par e-mail</button></div><div id="topList"></div>
+</section>
 <section id="v-add" class="view">
   <header><h1>Ajouter un restaurant</h1></header>
   <div class="addWrap">
@@ -147,9 +153,10 @@ label input,label textarea{display:block;width:100%;margin-top:4px;padding:11px 
 </section>
 
 <nav>
-  <button data-v="list"><span>📖</span>Répertoire</button>
+  <button data-v="list"><span>📖</span>À tester</button>
   <button data-v="cam" class="on"><span>📷</span>Photo</button>
   <button data-v="add"><span>＋</span>Ajout</button>
+  <button data-v="top"><span>⭐</span>Mon Top</button>
   <button data-v="map"><span>🗺️</span>Carte</button>
 </nav>
 
@@ -189,7 +196,7 @@ const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u030
 
 let items = [], me = null, draft = null, suggData = [];
 let map = null, markers = [], meMarker = null, infoWindow = null, mapLoading = false;
-let selCity = '', selDist = '', selType = '', view = 'cam', stream = null;
+let selCity = '', selDist = '', selType = '', topSelCity = '', topSelDist = '', topSelType = '', view = 'cam', stream = null;
 
 /* ---------- stockage (IndexedDB) ---------- */
 const DB = {
@@ -220,6 +227,7 @@ function showView(v) {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   if (v === 'cam') startCam(); else stopCam();
   if (v === 'list') renderList();
+  if (v === 'top') renderTop();
   if (v === 'map') initMap();
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => showView(b.dataset.v));
@@ -468,38 +476,28 @@ $('#btnAddResult').onclick=async()=>{
   catch(e){toast('Enregistrement impossible');}
 };
 
-/* ---------- répertoire ---------- */
-function renderList() {
-  const cities = [...new Set(items.map(i => i.city).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  if (selCity && !cities.includes(selCity)) selCity = '';
-  const dists = selCity ? [...new Set(items.filter(i => i.city === selCity).map(i => i.district).filter(Boolean))].sort((a, b) => a.localeCompare(b)) : [];
-  const types = [...new Set(items.map(i => i.type).filter(Boolean))].sort((a,b) => a.localeCompare(b));
-  if (selType && !types.includes(selType)) selType = '';
-  if (selDist && !dists.includes(selDist)) selDist = '';
-  const chip = (type, val, label, on) => `<button class="chip${on ? ' on' : ''}" data-${type}="${esc(val)}">${esc(label)}</button>`;
-  $('#cities').innerHTML = cities.length ? chip('city', '', 'Toutes', !selCity) + cities.map(c => chip('city', c, c, c === selCity)).join('') : '';
-  $('#dists').innerHTML = dists.length ? chip('dist', '', 'Tous les quartiers', !selDist) + dists.map(d => chip('dist', d, d, d === selDist)).join('') : '';
-  $('#types').innerHTML = types.length ? chip('type', '', 'Tous les types', !selType) + types.map(t => chip('type', t, t, t === selType)).join('') : '';
-
-  const q = norm($('#q').value.trim());
-  const res = items
-     .filter(i => (!selCity || i.city === selCity) && (!selDist || i.district === selDist) && (!selType || i.type === selType) &&
-      (!q || norm([i.name, i.address, i.district, i.city, i.country, i.menu].join(' ')).includes(q)))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-  $('#list').innerHTML = res.length ? res.map(i => `
-    <article class="card" data-id="${esc(i.id)}">
-      <img src="${esc(i.facadePhoto || i.photo)}" alt="">
-      <div><b>${esc(i.name)}</b>
-        <small>${esc([i.type, i.district, i.city].filter(Boolean).join(' · ') || 'Type et lieu à compléter')}</small></div>
-    </article>`).join('')
-    : `<div class="empty">${items.length ? 'Aucun résultat.' : 'Aucun restaurant enregistré pour l\'instant.<br>Prends ton premier resto en photo 📷'}</div>`;
+/* ---------- À tester et Mon Top ---------- */
+function cardHtml(i,button){return `<article class="card" data-id="${esc(i.id)}"><img src="${esc(i.facadePhoto||i.photo||'')}" alt=""><div><b>${esc(i.name)}</b><small>${esc([i.type,i.district,i.city].filter(Boolean).join(' · ')||'Lieu à compléter')}</small></div>${button?`<div style="padding:0 10px 10px"><button class="topBtn" data-top="${esc(i.id)}">${i.isTop?'★ Dans Mon Top':'☆ Top'}</button></div>`:''}</article>`}
+async function toggleTop(id){const i=items.find(x=>x.id===id);if(!i)return;i.isTop=!i.isTop;await DB.put(i);items=await DB.all();renderList();if(view==='top')renderTop();if(!$('#detail').hidden)openDetail(id);toast(i.isTop?'Ajouté à Mon Top ⭐':'Retiré de Mon Top');}
+function renderList(){
+ const cities=[...new Set(items.map(i=>i.city).filter(Boolean))].sort(),dists=[...new Set(items.filter(i=>!selCity||i.city===selCity).map(i=>i.district).filter(Boolean))].sort(),types=[...new Set(items.map(i=>i.type).filter(Boolean))].sort();
+ const chips=(k,vals,sel,all)=>vals.map(v=>`<button class="chip${v===sel?' on':''}" data-${k}="${esc(v)}">${esc(v||all)}</button>`).join('');
+ $('#cities').innerHTML=chips('city',['',...cities],selCity,'Toutes les villes');$('#dists').innerHTML=chips('dist',['',...dists],selDist,'Tous les quartiers');$('#types').innerHTML=chips('type',['',...types],selType,'Tous les types');
+ const q=norm($('#q').value.trim()),res=items.filter(i=>(!selCity||i.city===selCity)&&(!selDist||i.district===selDist)&&(!selType||i.type===selType)&&(!q||norm([i.name,i.address,i.district,i.city,i.country,i.menu].join(' ')).includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+ $('#list').innerHTML=res.length?res.map(i=>cardHtml(i,true)).join(''):`<div class="empty">${items.length?'Aucun résultat.':'Aucun restaurant enregistré pour l\'instant.<br>Ajoute ton premier restaurant 📷'}</div>`;
 }
-$('#q').oninput = renderList;
-$('#cities').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selCity = b.dataset.city; selDist = ''; renderList(); };
-$('#dists').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selDist = b.dataset.dist; renderList(); };
-$('#types').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; selType = b.dataset.type; renderList(); };
-$('#list').onclick = e => { const c = e.target.closest('.card'); if (c) openDetail(c.dataset.id); };
+function renderTop(){
+ const arr=items.filter(i=>i.isTop),cities=[...new Set(arr.map(i=>i.city).filter(Boolean))].sort(),dists=[...new Set(arr.filter(i=>!topSelCity||i.city===topSelCity).map(i=>i.district).filter(Boolean))].sort(),types=[...new Set(arr.map(i=>i.type).filter(Boolean))].sort();
+ const chips=(k,vals,sel,all)=>vals.map(v=>`<button class="chip${v===sel?' on':''}" data-top-${k}="${esc(v)}">${esc(v||all)}</button>`).join('');
+ $('#topCities').innerHTML=chips('city',['',...cities],topSelCity,'Toutes les villes');$('#topDists').innerHTML=chips('dist',['',...dists],topSelDist,'Tous les quartiers');$('#topTypes').innerHTML=chips('type',['',...types],topSelType,'Tous les types');
+ const q=norm($('#topQ').value.trim()),res=arr.filter(i=>(!topSelCity||i.city===topSelCity)&&(!topSelDist||i.district===topSelDist)&&(!topSelType||i.type===topSelType)&&(!q||norm(i.name).includes(q))).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+ $('#topList').innerHTML=res.length?res.map(i=>cardHtml(i,false)).join(''):'<div class="empty">Ton Top est encore vide. Marque ⭐ les restaurants que tu as adorés dans « À tester ».</div>';
+}
+$('#q').oninput=renderList;$('#cities').onclick=e=>{let b=e.target.closest('[data-city]');if(b){selCity=b.dataset.city;selDist='';renderList();}};$('#dists').onclick=e=>{let b=e.target.closest('[data-dist]');if(b){selDist=b.dataset.dist;renderList();}};$('#types').onclick=e=>{let b=e.target.closest('[data-type]');if(b){selType=b.dataset.type;renderList();}};
+$('#list').onclick=e=>{let t=e.target.closest('[data-top]');if(t){e.stopPropagation();toggleTop(t.dataset.top);return;}let c=e.target.closest('.card');if(c)openDetail(c.dataset.id);};
+$('#topQ').oninput=renderTop;$('#topCities').onclick=e=>{let b=e.target.closest('[data-top-city]');if(b){topSelCity=b.dataset.topCity;topSelDist='';renderTop();}};$('#topDists').onclick=e=>{let b=e.target.closest('[data-top-dist]');if(b){topSelDist=b.dataset.topDist;renderTop();}};$('#topTypes').onclick=e=>{let b=e.target.closest('[data-top-type]');if(b){topSelType=b.dataset.topType;renderTop();}};
+$('#topList').onclick=e=>{let c=e.target.closest('.card');if(c)openDetail(c.dataset.id);};
+$('#btnShareTop').onclick=()=>{const q=norm($('#topQ').value.trim()),arr=items.filter(i=>i.isTop&&(!topSelCity||i.city===topSelCity)&&(!topSelDist||i.district===topSelDist)&&(!topSelType||i.type===topSelType)&&(!q||norm(i.name).includes(q)));if(!arr.length){toast('Aucun restaurant dans cette sélection');return;}const body='Voici mes bonnes adresses :\n\n'+arr.map(i=>[`• ${i.name}`,[i.type,i.district,i.city].filter(Boolean).join(' · '),i.address||'',i.lat!=null?`https://www.google.com/maps/search/?api=1&query=${i.lat},${i.lon}`:'' ].filter(Boolean).join('\n')).join('\n\n');location.href='mailto:?subject='+encodeURIComponent('Mes bonnes adresses RestoNotes')+'&body='+encodeURIComponent(body);};
 
 function openDetail(id) {
   const i = items.find(x => x.id === id); if (!i) return;
