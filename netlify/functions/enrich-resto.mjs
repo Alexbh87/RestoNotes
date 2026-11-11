@@ -53,20 +53,22 @@ export async function handler(event) {
       };
       const googleType = [place.primaryType, ...(place.types || [])].find(t => typeMap[t]);
       const addressComponents = place.addressComponents || [];
-      // À Paris, privilégie toujours le numéro d'arrondissement lorsqu'il est fourni par Google.
-      const arrondissementComponent = addressComponents.find(c => {
-        const value = [c.longText, c.shortText].filter(Boolean).join(" ");
-        const types = c.types || [];
-        return /arrondissement/i.test(value) &&
-          types.some(t => ["sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t));
-      });
-      const arrondissementText = [arrondissementComponent?.longText, arrondissementComponent?.shortText].filter(Boolean).join(" ");
-      const arrondissementMatch = arrondissementText.match(/(?:^|\\D)(\\d{1,2})(?:er|e|ème|eme|st|nd|rd|th)?\\s*(?:e\\s*)?arrondissement|arrondissement\\s*(?:de\\s*)?(?:de\\s*paris\\s*)?(\\d{1,2})/i);
-      const arrondissementNumber = arrondissementMatch ? Number(arrondissementMatch[1] || arrondissementMatch[2]) : null;
+      // Récupère le quartier ou, à défaut, l'arrondissement (Paris, Lyon, Marseille).
       const districtComponent = addressComponents.find(c =>
         (c.types || []).some(t => ["neighborhood", "sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t))
       );
-      const district = arrondissementNumber >= 1 && arrondissementNumber <= 20
+      const districtParts = addressComponents
+        .filter(c => (c.types || []).some(t => ["sublocality", "sublocality_level_1", "sublocality_level_2", "administrative_area_level_3"].includes(t)))
+        .flatMap(c => [c.longText, c.shortText]).filter(Boolean);
+      const postalCode = addressComponents.find(c => (c.types || []).includes("postal_code"))?.longText || "";
+      const addressText = [place.formattedAddress, ...districtParts].filter(Boolean).join(" ");
+      let arrondissementNumber = null;
+      const namedArrondissement = addressText.match(/(?:^|\\D)(\\d{1,2})(?:er|e|ème|eme)?\\s*(?:e\\s*)?arrondissement|arrondissement\\s*(?:de\\s*)?(?:de\\s*paris\\s*)?(\\d{1,2})/i);
+      if (namedArrondissement) arrondissementNumber = Number(namedArrondissement[1] || namedArrondissement[2]);
+      if (!arrondissementNumber && /^750(?:0[1-9]|1[0-9]|20)$/.test(postalCode)) arrondissementNumber = Number(postalCode.slice(-2));
+      if (!arrondissementNumber && /^6900[1-9]$/.test(postalCode)) arrondissementNumber = Number(postalCode.slice(-1));
+      if (!arrondissementNumber && /^130(?:0[1-9]|1[0-6])$/.test(postalCode)) arrondissementNumber = Number(postalCode.slice(-2));
+      const district = arrondissementNumber
         ? (arrondissementNumber === 1 ? "1er arrondissement" : arrondissementNumber + "e arrondissement")
         : (districtComponent?.longText || districtComponent?.shortText || "");
       const detectedType = typeMap[googleType] || place.primaryTypeDisplayName?.text || "";
