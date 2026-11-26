@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RestoNotes">
+<meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161412" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="RestoNotes : garde tes adresses de restaurants, avec photo, carte, notes et favoris.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+<title>RestoNotes</title>
+
+<style>
+:root{
+  color-scheme:light dark;
+  --bg:#fbfaf8;--card:#fff;--line:#e8e5e1;--txt:#252321;--mut:#68635c;
+  --acc:#e86f45;        /* marque, pins, décors */
+  --acc-ink:#b83f19;    /* texte/liens orange (contraste AA sur fond clair) */
+  --acc-btn:#cf4b20;    /* fond des boutons avec texte blanc */
+  --acc-soft:#fdeee7;--danger:#c0342f;--gold:#f2a900;--ok:#3f8f5f;
+  --shadow:0 2px 10px rgba(30,25,20,.06);--nav:60px;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#161412;--card:#211f1c;--line:#37332f;--txt:#f2efea;--mut:#aaa49b;--acc-ink:#ff9d7c;--acc-soft:#3a2219;--danger:#ff8680;--shadow:none}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.view{display:none;position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));overflow:auto;-webkit-overflow-scrolling:touch}
+.view.active{display:block}
+body.full .view{bottom:0}
+body.full nav{display:none}
+
+/* navigation */
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line);display:flex;align-items:center;z-index:900}
+nav button{position:relative;flex:1;height:100%;min-width:0;background:none;border:0;color:var(--mut);font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button span{font-size:21px;line-height:1}
+nav button.on{color:var(--acc-ink);font-weight:700}
+nav .fab{flex:0 0 58px;width:58px;height:58px;height:58px;border-radius:50%;background:var(--acc-btn);color:#fff;margin:0 6px;transform:translateY(-12px);box-shadow:0 6px 16px rgba(207,75,32,.4)}
+nav .fab span{font-size:30px;font-weight:300}
+nav .dot{position:absolute;top:9px;left:calc(50% + 8px);width:9px;height:9px;border-radius:50%;background:var(--acc);border:2px solid var(--card)}
+
+/* en-têtes */
+header.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 16px 4px}
+h1{margin:0;font:700 26px/1.1 var(--serif);letter-spacing:-.01em}
+.brand{display:flex;align-items:center;gap:9px}
+.brand img{width:30px;height:30px;border-radius:8px}
+.brand span{color:var(--acc-ink)}
+.backBtn{background:none;border:0;font-size:24px;padding:6px 10px;margin-left:-10px;min-width:44px;min-height:44px}
+
+/* barre de recherche / filtres */
+.tbRow{display:flex;gap:8px;padding:8px 16px 4px}
+.q{flex:1;min-width:0;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.fbtn{position:relative;flex:none;min-height:46px;padding:0 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.fcount{background:var(--acc-btn);color:#fff;border-radius:999px;min-width:20px;height:20px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.active{display:flex;gap:8px;overflow-x:auto;padding:2px 16px;scrollbar-width:none}
+.active:empty{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 13px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:14px;min-height:36px}
+.chip.on{background:var(--acc-btn);border-color:var(--acc-btn);color:#fff}
+.seg{display:flex;margin:8px 16px 0;background:var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:none;padding:9px 6px;border-radius:10px;font-weight:600;color:var(--mut)}
+.seg button.on{background:var(--card);color:var(--txt);box-shadow:var(--shadow)}
+.shareRow{padding:10px 16px 0}
+
+/* cartes */
+.grid{padding:10px 12px 28px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (min-width:640px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:960px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;min-width:0;box-shadow:var(--shadow);transition:opacity .22s,transform .22s}
+.card.out{opacity:0;transform:scale(.92)}
+.cimg{position:relative;height:122px;background:var(--line)}
+.cimg img{width:100%;height:100%;object-fit:cover;display:block}
+.noimg{height:100%;display:flex;align-items:center;justify-content:center;font-size:34px}
+.badge{position:absolute;bottom:7px;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(20,18,16,.72);color:#fff}
+.badge.dist{left:7px}.badge.rate{right:7px;color:#ffd35c}
+.cbody{padding:10px 11px 8px;min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.cname{background:none;border:0;padding:0;text-align:left;font-weight:700;font-size:16px;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 9px;border-radius:999px;background:var(--acc-soft);color:var(--acc-ink);font-size:12px;font-weight:600}
+.card small{color:var(--mut);font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card small.note{font-style:italic}
+.mini{margin:2px 10px 11px;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--acc-ink);font-weight:700;min-height:40px}
+.empty{grid-column:1/-1;text-align:center;color:var(--mut);padding:44px 18px;display:grid;gap:10px;justify-items:center}
+.empty .big{font-size:44px}.empty p{margin:0}.empty .sub{font-size:14px}
+.empty button{width:100%;max-width:320px}
+
+/* skeleton / étapes */
+.steps{display:flex;gap:6px;list-style:none;padding:0;margin:12px 0 4px;font-size:13px;color:var(--mut)}
+.steps li{flex:1;padding:6px 8px;border-radius:10px;background:var(--line);text-align:center}
+.steps li[data-state=active]{background:var(--acc-soft);color:var(--acc-ink);font-weight:700;animation:pulse 1.2s infinite}
+.steps li[data-state=done]{background:rgba(63,143,95,.15);color:var(--ok);font-weight:700}
+.steps li[data-state=done]::before{content:"✓ "}
+.steps li[data-state=fail]{opacity:.7}.steps li[data-state=fail]::before{content:"– "}
+@keyframes pulse{50%{opacity:.55}}
+input.skel{background:linear-gradient(90deg,var(--card),var(--line),var(--card));background-size:200% 100%;animation:shimmer 1.2s infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* caméra */
+#v-cam{overflow:hidden;background:#000;color:#fff}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camX{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top));z-index:5;width:46px;height:46px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:20px}
+.camHint{position:absolute;left:0;right:0;top:calc(22px + env(safe-area-inset-top));text-align:center;margin:0;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.8);pointer-events:none}
+#camErr{position:absolute;left:18px;right:18px;top:30%;text-align:center;color:#ddd;display:grid;gap:12px}
+.camBar{position:absolute;left:0;right:0;bottom:calc(26px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-around}
+.side{width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer}
+#shutter{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:rgba(255,255,255,.85);box-shadow:0 0 0 3px rgba(0,0,0,.3)}
+#shutter:active{transform:scale(.93)}
+
+/* ajout par nom */
+.addWrap{padding:0 18px 28px;max-width:620px;margin:0 auto}
+.addResult{margin-top:16px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.addResult>img{display:block;width:100%;height:210px;object-fit:cover;background:var(--line)}
+.addInfo{padding:14px 16px}.addInfo h2{margin:0 0 6px;font:700 21px var(--serif)}.addInfo p{margin:5px 0;color:var(--mut)}
+.addInfo a{display:inline-block;color:var(--acc-ink);margin:8px 14px 0 0;font-weight:700}
+#btnAddResult{width:calc(100% - 28px);margin:0 14px 14px}
+
+/* carte */
+#v-map{overflow:hidden}
+#map{position:absolute;inset:0}
+#mapMsg{position:absolute;left:20px;right:20px;top:35%;text-align:center;color:var(--mut);display:grid;gap:12px;justify-items:center}
+.mapBtns{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:5;display:grid;gap:8px}
+.mapBtns button{background:var(--card);color:var(--txt);border:0;border-radius:12px;padding:11px 13px;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:600;min-height:44px}
+.legend{position:absolute;left:12px;bottom:12px;z-index:5;background:var(--card);border-radius:12px;padding:7px 11px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;gap:10px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+
+/* feuilles */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
+.panel{width:100%;max-width:640px;max-height:94dvh;overflow:auto;background:var(--card);border-radius:22px 22px 0 0;padding:18px 16px 0;color:var(--txt);outline:none}
+.panel h2{margin:0 0 6px;font:700 22px var(--serif)}
+.panel img.shot{width:100%;max-height:32dvh;object-fit:cover;border-radius:14px;background:#000;display:block}
+label{display:block;margin-top:12px;font-size:13px;color:var(--mut)}
+label input,label textarea{display:block;width:100%;margin-top:4px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--txt)}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.hint{margin:10px 0 2px;font-size:14px;color:var(--mut)}
+details{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:0 12px 12px}
+summary{padding:12px 0;font-weight:600;cursor:pointer;min-height:44px}
+.sheetBar{position:sticky;bottom:0;display:flex;gap:10px;background:var(--card);padding:12px 0 calc(12px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid var(--line)}
+.sheetBar>*{flex:1}
+.primary,.ghost,.btn{border-radius:12px;padding:13px 14px;border:1px solid var(--line);font-weight:700;text-align:center;display:block;text-decoration:none;min-height:46px;width:100%}
+.primary{background:var(--acc-btn);border-color:var(--acc-btn);color:#fff}
+.ghost,.btn{background:var(--card);color:var(--txt)}
+.linkBtn{background:none;border:0;color:var(--mut);padding:10px;font-size:14px;text-decoration:underline;min-height:44px}
+.linkBtn.danger{color:var(--danger)}
+.stack{display:grid;gap:10px;margin:14px 0}
+.big{display:flex;gap:14px;align-items:center;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--bg)}
+.big span{font-size:30px}.big b{display:block}.big small{color:var(--mut)}
+.stars{display:flex;gap:2px;margin:8px 0}
+.stars button{background:none;border:0;font-size:34px;line-height:1;padding:4px 6px;min-width:44px;min-height:44px;color:var(--line)}
+.stars button.on{color:var(--gold)}
+#detailBody h2{margin:14px 0 4px}
+#detailBody p{margin:4px 0;color:var(--mut)}
+#detailBody a.link{color:var(--acc-ink);font-weight:600;word-break:break-all}
+#detailBody pre{white-space:pre-wrap;font:inherit;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0}
+#fBody h3{margin:16px 0 8px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.onbIcon{font-size:64px;text-align:center;margin:18px 0 6px}
+.onb{text-align:center}.onb h2{font-size:26px}.onb p{color:var(--mut);margin:8px 0 18px}
+.dots{display:flex;justify-content:center;gap:7px;margin:6px 0 14px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.dots i.on{background:var(--acc)}
+
+/* réglages */
+.settings{padding:6px 16px 28px;max-width:620px;margin:0 auto}
+.settings section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 14px 14px;margin-top:14px}
+.settings h2{font:700 18px var(--serif);margin:12px 0 2px}
+.settings p{color:var(--mut);margin:4px 0;font-size:14px}
+
+#toast{position:fixed;left:50%;bottom:calc(var(--nav) + 18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#2a2724;color:#fff;padding:11px 16px;border-radius:999px;z-index:3000;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;display:flex;gap:14px;align-items:center;max-width:calc(100% - 24px);box-shadow:0 4px 16px rgba(0,0,0,.35)}
+#toast.show{opacity:1}#toast.act{pointer-events:auto}
+#toast button{background:none;border:0;color:#ffb59c;font-weight:800;padding:2px 4px;min-height:32px}
+body.full #toast{bottom:calc(120px + env(safe-area-inset-bottom))}
+</style>
+</head>
+<body>
+
+<!-- À tester -->
+<section id="v-list" class="view active" aria-label="Restaurants à tester">
+  <header class="top"><h1 class="brand"><img src="/icon.svg" alt="" width="30" height="30">Resto<span>Notes</span></h1></header>
+  <div id="tb-list"></div>
+  <div id="list" class="grid"></div>
+</section>
+
+<!-- Testés / Mon Top -->
+<section id="v-done" class="view" aria-label="Restaurants testés">
+  <header class="top"><h1>Testés</h1></header>
+  <div class="seg" role="group" aria-label="Affichage">
+    <button id="segAll" data-seg="all" class="on" aria-pressed="true">Tous</button>
+    <button id="segTop" data-seg="top" aria-pressed="false">⭐ Mon Top</button>
+  </div>
+  <div id="tb-done"></div>
+  <div class="shareRow"><button id="btnShare" class="ghost">📤 Partager cette sélection</button></div>
+  <div id="doneList" class="grid"></div>
+</section>
+
+<!-- Ajout par nom -->
+<section id="v-add" class="view" aria-label="Ajouter par nom">
+  <header class="top"><button id="addBack" class="backBtn" aria-label="Retour">←</button><h1 style="flex:1">Ajouter un resto</h1></header>
+  <div class="addWrap">
+    <p class="hint">Indique son nom et sa ville : RestoNotes retrouve sa fiche et te la présente avant de l'ajouter.</p>
+    <label>Nom du restaurant<input id="addName" placeholder="Ex. Can Fisher" autocomplete="off"></label>
+    <label>Ville<input id="addCity" placeholder="Ex. Barcelone" autocomplete="off"></label>
+    <div class="stack"><button id="btnFind" class="primary">✨ Rechercher le restaurant</button></div>
+    <div id="addStatus" class="hint" aria-live="polite"></div>
+    <article id="addResult" class="addResult" hidden>
+      <img id="addPhoto" alt="Photo du restaurant">
+      <div class="addInfo">
+        <h2 id="addTitle"></h2>
+        <p id="addType"></p><p id="addAddress"></p>
+        <a id="addWebsite" target="_blank" rel="noopener" hidden>Site officiel</a>
+        <a id="addMenu" target="_blank" rel="noopener" hidden>Voir le menu</a>
+      </div>
+      <button id="btnAddResult" class="primary">＋ Ajouter à ma liste</button>
+    </article>
+  </div>
+</section>
+
+<!-- Caméra -->
+<section id="v-cam" class="view" aria-label="Appareil photo">
+  <video id="video" autoplay playsinline muted aria-label="Aperçu de la caméra"></video>
+  <button id="camClose" class="camX" aria-label="Fermer la caméra">✕</button>
+  <p class="camHint">Cadre l'enseigne du restaurant</p>
+  <div id="camErr" hidden>
+    <div>📷 L'appareil photo n'est pas accessible.<br>Autorise la caméra dans le navigateur, ou prends/importe une photo ci-dessous.</div>
+    <label class="btn" style="color:#222">Ouvrir l'appareil photo<input id="fileCam" type="file" accept="image/*" capture="environment" hidden></label>
+  </div>
+  <div class="camBar">
+    <label class="side" aria-label="Importer une photo de la galerie">🖼️<input id="fileGal" type="file" accept="image/*" hidden></label>
+    <button id="shutter" aria-label="Prendre la photo"></button>
+    <span class="side" style="visibility:hidden"></span>
+  </div>
+</section>
+
+<!-- Carte -->
+<section id="v-map" class="view" aria-label="Carte">
+  <div id="map"></div>
+  <div id="mapMsg" hidden><div id="mapMsgTxt">Carte indisponible.</div><button id="btnMapRetry" class="ghost" style="width:auto">Réessayer</button></div>
+  <div class="mapBtns">
+    <button id="btnMe">📍 Ma position</button>
+    <button id="btnAll">🗺️ Tout voir</button>
+  </div>
+  <div class="legend" aria-hidden="true"><span><i style="background:#e86f45"></i>À tester</span><span><i style="background:#3f8f5f"></i>Testé</span><span><i style="background:#f2a900"></i>Top</span></div>
+</section>
+
+<!-- Réglages -->
+<section id="v-settings" class="view" aria-label="Réglages">
+  <header class="top"><h1>Réglages</h1></header>
+  <div class="settings" id="settingsBody"></div>
+</section>
+
+<nav aria-label="Navigation principale">
+  <button data-v="list"><span aria-hidden="true">📖</span>À tester</button>
+  <button data-v="done"><span aria-hidden="true">⭐</span>Testés</button>
+  <button id="navAdd" class="fab" aria-label="Ajouter un restaurant"><span aria-hidden="true">＋</span></button>
+  <button data-v="map"><span aria-hidden="true">🗺️</span>Carte</button>
+  <button data-v="settings"><span aria-hidden="true">⚙︎</span>Réglages<i class="dot" id="backupDot" hidden></i></button>
+</nav>
+
+<!-- Choix du mode d'ajout -->
+<div id="actions" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="actTitle">
+  <div class="panel" tabindex="-1">
+    <h2 id="actTitle">Ajouter un restaurant</h2>
+    <div class="stack">
+      <button class="big" data-act="photo"><span aria-hidden="true">📷</span><div><b>Prendre en photo</b><small>Je lis l'enseigne et je retrouve la fiche (caméra et position demandées)</small></div></button>
+      <button class="big" data-act="search"><span aria-hidden="true">🔎</span><div><b>Chercher par nom</b><small>Nom + ville : photo, adresse et menu</small></div></button>
+      <button class="ghost" id="actCancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fiche d'ajout / modification -->
+<div id="sheet" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="panel" tabindex="-1">
+    <h2 id="sheetTitle" class="sr">Fiche du restaurant</h2>
+    <img id="shotImg" class="shot" alt="Photo du restaurant">
+    <ol id="steps" class="steps" aria-label="Progression de l'identification">
+      <li data-s="pos" data-state="idle">Position</li><li data-s="name" data-state="idle">Nom</li><li data-s="type" data-state="idle">Type</li>
+    </ol>
+    <div id="status" class="hint" aria-live="polite"></div>
+    <div id="sugg" class="chips" style="padding:4px 0"></div>
+    <label>Nom du restaurant<input id="iName" autocomplete="off" enterkeyhint="next"></label>
+    <label>Type de cuisine<input id="iType" list="typeList" autocomplete="off" placeholder="Italien, japonais, tapas…"></label>
+    <datalist id="typeList"><option>Italien</option><option>Pizzeria</option><option>Japonais</option><option>Japonais – Sushi</option><option>Chinois</option><option>Indien</option><option>Mexicain</option><option>Français</option><option>Thaïlandais</option><option>Vietnamien</option><option>Coréen</option><option>Espagnol – Tapas</option><option>Méditerranéen</option><option>Libanais</option><option>Fruits de mer</option><option>Steakhouse</option><option>Burger</option><option>Végétarien / Vegan</option><option>Café / Brunch</option><option>Boulangerie / Café</option><option>Bar à tapas</option></datalist>
+    <details id="more">
+      <summary>Plus de détails (adresse, site, menu…)</summary>
+      <label>Adresse<input id="iAddr" autocomplete="off"></label>
+      <div class="row">
+        <label>Quartier<input id="iDist" autocomplete="off"></label>
+        <label>Ville<input id="iCity" autocomplete="off"></label>
+      </div>
+      <label>Pays<input id="iCountry" autocomplete="off"></label>
+      <label>Site web<input id="iWeb" type="url" autocomplete="off"></label>
+      <label>Menu / texte de la photo<textarea id="iMenu" rows="4" placeholder="Plats, prix, envies…"></textarea></label>
+      <button id="btnOcr" class="linkBtn" type="button">🔍 Lire le texte de la photo (enseigne, menu)</button>
+    </details>
+    <div class="sheetBar">
+      <button id="btnCancel" class="ghost">Annuler</button>
+      <button id="btnSave" class="primary">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Note -->
+<div id="rate" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="rateTitle">
+  <div class="panel" tabindex="-1">
+    <h2 id="rateTitle">Ton avis</h2>
+    <div id="rateStars" class="stars" role="group" aria-label="Note sur 5"></div>
+    <label>Un mot pour la prochaine fois<textarea id="rateNote" rows="2" maxlength="200" placeholder="Prendre le tiramisu…"></textarea></label>
+    <div class="sheetBar" style="flex-wrap:wrap">
+      <button id="rateCancel" class="ghost">Annuler</button>
+      <button id="rateSave" class="primary">Enregistrer</button>
+      <button id="rateReset" class="linkBtn" style="flex-basis:100%" hidden>Remettre dans « À tester »</button>
+    </div>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div id="filters" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="fTitle">
+  <div class="panel" tabindex="-1">
+    <h2 id="fTitle">Filtres</h2>
+    <div id="fBody"></div>
+    <div class="sheetBar"><button id="fReset" class="ghost">Réinitialiser</button><button id="fDone" class="primary">Voir les résultats</button></div>
+  </div>
+</div>
+
+<!-- Détail -->
+<div id="detail" class="overlay" hidden role="dialog" aria-modal="true" aria-label="Fiche du restaurant"><div class="panel" id="detailBody" tabindex="-1"></div></div>
+
+<!-- Intro -->
+<div id="onb" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="onbTitle">
+  <div class="panel onb" tabindex="-1">
+    <div class="onbIcon" id="onbIcon" aria-hidden="true"></div>
+    <h2 id="onbTitle"></h2>
+    <p id="onbText"></p>
+    <div class="dots" id="onbDots" aria-hidden="true"></div>
+    <div class="sheetBar"><button id="onbSkip" class="ghost">Passer</button><button id="onbNext" class="primary">Suivant</button></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uniq = a => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y));
+const LS = {
+  get(k, d = '') { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+};
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : (u ? 'https://' + u : '');
+const PROXY = '/.netlify/functions/enrich-resto';
+
+let items = [], me = null, lastRenderPos = null, draft = null, suggData = [];
+let view = 'list', lastMain = 'list', stream = null, camStarting = false, detailId = null;
+let map = null, markers = [], clusterer = null, meMarker = null, infoWindow = null, mapLoading = false, pendingFocus = null, drawSeq = 0;
+const F = { city: '', dist: '', type: '' };
+const sortBy = { list: 'recent', done: 'rating' };
+const search = { list: '', done: '' };
+let topOnly = false, filterScope = 'list';
+const ratingOf = i => Number(i.rating) || 0;
+
+/* ---------- stockage (IndexedDB) ---------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('resto-notes', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('r', { keyPath: 'id' });
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  all() { return new Promise(res => { const q = this.db.transaction('r').objectStore('r').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); }); },
+  put(o) { return new Promise((res, rej) => { const t = this.db.transaction('r', 'readwrite'); t.objectStore('r').put(o); t.oncomplete = () => res(); t.onerror = t.onabort = () => rej(t.error); }); },
+  del(id) { return new Promise(res => { const t = this.db.transaction('r', 'readwrite'); t.objectStore('r').delete(id); t.oncomplete = t.onerror = t.onabort = () => res(); }); }
+};
+
+/* ---------- images (Blob + vignettes) ---------- */
+const thumbUrls = new WeakMap(), tempUrls = new Set();
+function urlOf(blob) { let u = thumbUrls.get(blob); if (!u) { u = URL.createObjectURL(blob); thumbUrls.set(blob, u); } return u; }
+function tempUrl(blob) { const u = URL.createObjectURL(blob); tempUrls.add(u); return u; }
+function revokeTemp() { tempUrls.forEach(u => URL.revokeObjectURL(u)); tempUrls.clear(); }
+const remoteOf = i => i.remoteUrl || i.facadePhoto || i.facadeUrl || (typeof i.photo === 'string' ? i.photo : '') || '';
+const thumbSrc = i => i.thumbBlob ? urlOf(i.thumbBlob) : (i.photoBlob ? urlOf(i.photoBlob) : remoteOf(i));
+const fullSrc = i => i.photoBlob ? tempUrl(i.photoBlob) : remoteOf(i);
+const canvasBlob = (c, q) => new Promise(res => c.toBlob(b => res(b), 'image/jpeg', q));
+const dims = s => [s.videoWidth || s.naturalWidth || s.width, s.videoHeight || s.naturalHeight || s.height];
+async function scaledCanvas(src, max) {
+  const [w, h] = dims(src), s = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return c;
+}
+async function thumbBlobFrom(src) { return canvasBlob(await scaledCanvas(src, 420), 0.72); }
+async function captureFrom(src) {
+  const c = await scaledCanvas(src, 1024);
+  const [photoBlob, thumbBlob] = await Promise.all([canvasBlob(c, 0.78), thumbBlobFrom(c)]);
+  return { photoBlob, thumbBlob, _dataUrl: c.toDataURL('image/jpeg', 0.75) };
+}
+const blobToDataUrl = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+
+/* ---------- toast ---------- */
+function toast(msg, action) {
+  const t = $('#toast'); t.textContent = '';
+  const s = document.createElement('span'); s.textContent = msg; t.append(s);
+  if (action) {
+    const b = document.createElement('button'); b.textContent = action.label;
+    b.onclick = () => { clearTimeout(toast.t); t.classList.remove('show', 'act'); action.fn(); };
+    t.append(b);
+  }
+  t.classList.add('show'); t.classList.toggle('act', !!action);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show', 'act'), action ? 6000 : 2600);
+}
+
+/* ---------- feuilles (overlays) ---------- */
+const overlayStack = []; let lastFocus = null;
+function openOverlay(el) {
+  if (!overlayStack.length) lastFocus = document.activeElement;
+  el.hidden = false; overlayStack.push(el);
+  const p = el.querySelector('.panel'); if (p) { p.scrollTop = 0; p.focus({ preventScroll: true }); }
+}
+function closeOverlay(el) {
+  el.hidden = true;
+  const k = overlayStack.indexOf(el); if (k > -1) overlayStack.splice(k, 1);
+  if (!overlayStack.length && lastFocus && document.contains(lastFocus)) { try { lastFocus.focus({ preventScroll: true }); } catch {} }
+}
+const closers = { actions: () => closeOverlay($('#actions')), sheet: () => closeSheet(), rate: () => closeOverlay($('#rate')), filters: () => closeOverlay($('#filters')), detail: () => closeDetail() };
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !overlayStack.length) return;
+  const el = overlayStack[overlayStack.length - 1]; closers[el.id]?.();
+});
+for (const id of ['actions', 'rate', 'filters', 'detail']) $('#' + id).addEventListener('click', e => { if (e.target.id === id) closers[id](); });
+
+/* ---------- navigation ---------- */
+const MAIN = ['list', 'done', 'map', 'settings'];
+function showView(v) {
+  view = v; if (MAIN.includes(v)) lastMain = v;
+  $$('.view').forEach(e => e.classList.toggle('active', e.id === 'v-' + v));
+  $$('nav [data-v]').forEach(b => { const on = b.dataset.v === v; b.classList.toggle('on', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); });
+  document.body.classList.toggle('full', v === 'cam');
+  if (v === 'cam') startCam(); else stopCam();
+  if (v === 'list' || v === 'done') render(v);
+  if (v === 'map') initMap();
+  if (v === 'settings') renderSettings();
+  if (v === 'add') setTimeout(() => $('#addName').focus(), 50);
+}
+$$('nav [data-v]').forEach(b => b.onclick = () => showView(b.dataset.v));
+$('#navAdd').onclick = () => openOverlay($('#actions'));
+$('#actCancel').onclick = () => closeOverlay($('#actions'));
+$('#camClose').onclick = () => showView(lastMain);
+$('#addBack').onclick = () => showView(lastMain);
+
+/* ---------- caméra ---------- */
+async function startCam() {
+  if (stream || camStarting) return;
+  camStarting = true;
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }, audio: false });
+    if (view !== 'cam') { s.getTracks().forEach(t => t.stop()); } else { stream = s; $('#video').srcObject = s; $('#camErr').hidden = true; }
+  } catch { $('#camErr').hidden = false; }
+  camStarting = false;
+}
+function stopCam() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+const getPos = () => new Promise((res, rej) => {
+  if (!navigator.geolocation) return rej();
+  navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lon: p.coords.longitude }), rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+});
+$('#shutter').onclick = async () => {
+  const v = $('#video');
+  if (!v.videoWidth) { toast('Caméra pas prête'); return; }
+  const posP = getPos().catch(() => me);
+  const shot = await captureFrom(v);
+  newFromImage(shot, posP, false);
+};
+function fromFile(input, fromGallery) {
+  const f = input.files[0]; input.value = '';
+  if (!f) return;
+  const posP = getPos().catch(() => me);
+  const img = new Image();
+  img.onload = async () => { const shot = await captureFrom(img); URL.revokeObjectURL(img.src); newFromImage(shot, posP, fromGallery); };
+  img.onerror = () => toast('Image illisible');
+  img.src = URL.createObjectURL(f);
+}
+$('#fileCam').onchange = e => fromFile(e.target, false);
+$('#fileGal').onchange = e => fromFile(e.target, true);
+
+/* ---------- géocodage & restos autour de soi ---------- */
+async function reverse(lat, lon) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=fr&zoom=18&lat=${lat}&lon=${lon}`);
+  const a = (await r.json()).address || {};
+  return {
+    address: [a.house_number, a.road].filter(Boolean).join(' '),
+    district: a.suburb || a.neighbourhood || a.city_district || a.quarter || '',
+    city: a.city || a.town || a.village || a.municipality || '',
+    country: a.country || ''
+  };
+}
+function dist(lat1, lon1, lat2, lon2) {
+  const R = 6371000, rad = x => x * Math.PI / 180;
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+async function nearby(lat, lon) {
+  const q = `[out:json][timeout:10];nwr(around:60,${lat},${lon})["name"]["amenity"~"restaurant|cafe|fast_food|bar|pub|ice_cream|food_court"];out center tags 25;`;
+  const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q) });
+  const j = await r.json();
+  return (j.elements || []).map(e => {
+    const la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
+    return { tags: e.tags, d: dist(lat, lon, la, lo) };
+  }).sort((a, b) => a.d - b.d).slice(0, 6);
+}
+function distTxt(i) {
+  if (!me || i.lat == null || i.lon == null) return '';
+  const d = dist(me.lat, me.lon, Number(i.lat), Number(i.lon));
+  if (d < 1000) return Math.max(10, Math.round(d / 10) * 10) + ' m';
+  return (d / 1000).toFixed(d < 10000 ? 1 : 0).replace('.', ',') + ' km';
+}
+
+/* ---------- fiche « nouveau resto » ---------- */
+const fields = { name: '#iName', address: '#iAddr', district: '#iDist', city: '#iCity', country: '#iCountry', type: '#iType', website: '#iWeb', menu: '#iMenu' };
+function fillForm(d) { for (const k in fields) $(fields[k]).value = d[k] || ''; }
+function setIfEmpty(k, v) { const el = $(fields[k]); if (v && !el.value.trim()) el.value = v; }
+function setStatus(t) { $('#status').textContent = t; }
+const STEPS = ['pos', 'name', 'type'];
+function setStep(s, state) { const el = $(`#steps [data-s="${s}"]`); if (el) el.dataset.state = state; }
+function resetSteps() { STEPS.forEach(s => setStep(s, 'idle')); $('#iType').classList.remove('skel'); }
+
+function openSheet(d, opts = {}) {
+  draft = d; suggData = []; stopCam(); revokeTemp();
+  const src = d._dataUrl || (d.photoBlob ? tempUrl(d.photoBlob) : remoteOf(d));
+  const img = $('#shotImg'); img.hidden = !src; img.src = src || '';
+  $('#sugg').innerHTML = ''; setStatus('');
+  fillForm(d); resetSteps();
+  $('#steps').hidden = !!opts.edit;
+  $('#more').open = !!opts.edit;
+  $('#btnOcr').hidden = !(d._dataUrl || d.photoBlob);
+  $('#btnOcr').disabled = false;
+  openOverlay($('#sheet'));
+}
+function closeSheet() {
+  closeOverlay($('#sheet')); draft = null; revokeTemp(); $('#iType').classList.remove('skel');
+  if (view === 'cam') startCam();
+}
+
+async function newFromImage(shot, posP, fromGallery) {
+  const d = { ...shot, lat: null, lon: null };
+  openSheet(d);
+  setStep('pos', 'active'); setStatus('📍 Localisation en cours…');
+  const pos = await posP;
+  if (draft !== d) return;
+  if (!pos) { setStep('pos', 'fail'); setStatus('⚠️ Position introuvable : remplis les champs à la main.'); return; }
+  setStep('pos', 'done'); setStep('name', 'active');
+  d.lat = pos.lat; d.lon = pos.lon;
+  setStatus((fromGallery ? '(Photo importée : ta position actuelle est utilisée.) ' : '') + '🔎 Recherche de l\'adresse et des restos autour…');
+  const [a, n] = await Promise.allSettled([reverse(pos.lat, pos.lon), nearby(pos.lat, pos.lon)]);
+  if (draft !== d) return;
+  if (a.status === 'fulfilled') for (const k of ['address', 'district', 'city', 'country']) setIfEmpty(k, a.value[k]);
+  if (n.status === 'fulfilled' && n.value.length) {
+    suggData = n.value;
+    $('#sugg').innerHTML = suggData.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.tags.name)} · ${Math.round(s.d)} m</button>`).join('');
+    applySuggestion(0, true);
+    setStep('name', 'done');
+    setStatus('✅ Vérifie le nom (le plus proche est pré-rempli) ou choisis-en un autre :');
+  } else {
+    setStep('name', 'fail');
+    setStatus(n.status === 'fulfilled' ? 'Aucun restaurant trouvé à proximité : saisis le nom.' : '⚠️ Recherche des restos impossible (réseau ?) : saisis le nom.');
+  }
+  enrichRestaurant(d).catch(() => {});
+}
+function applySuggestion(i, onlyIfEmpty) {
+  const s = suggData[i]; if (!s) return;
+  const t = s.tags;
+  if (onlyIfEmpty) setIfEmpty('name', t.name); else $('#iName').value = t.name;
+  const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+  if (street && !onlyIfEmpty) $('#iAddr').value = street;
+  const web = t.website || t['contact:website'];
+  if (web) { if (onlyIfEmpty) setIfEmpty('website', web); else $('#iWeb').value = web; }
+  $$('#sugg .chip').forEach((c, j) => c.classList.toggle('on', j === i));
+}
+$('#sugg').onclick = e => { const b = e.target.closest('.chip'); if (b) applySuggestion(+b.dataset.i, false); };
+
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+$('#btnOcr').onclick = async () => {
+  const btn = $('#btnOcr'); btn.disabled = true;
+  setStatus('🔍 Lecture du texte… (la 1re fois, un modèle est téléchargé, ça peut prendre un moment)');
+  try {
+    if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    const { data } = await Tesseract.recognize(draft._dataUrl || draft.photoBlob, 'fra+eng');
+    const txt = (data.text || '').trim();
+    if (txt) { const m = $('#iMenu'); m.value = (m.value ? m.value + '\n' : '') + txt; $('#more').open = true; setStatus('✅ Texte ajouté dans « Menu » : relis-le et corrige si besoin.'); }
+    else setStatus('Aucun texte lisible sur la photo.');
+  } catch { setStatus('⚠️ Lecture du texte impossible (réseau ?).'); }
+  btn.disabled = false;
+};
+
+async function callEnrichment(payload) {
+  const r = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Enrichissement indisponible');
+  return data;
+}
+async function enrichRestaurant(d) {
+  setStep('type', 'active'); setStatus('✨ Lecture de l\'enseigne et identification du restaurant…');
+  $('#iType').classList.toggle('skel', !$('#iType').value.trim());
+  try {
+    const data = await callEnrichment({ photo: d._dataUrl, name: $('#iName').value, address: $('#iAddr').value, city: $('#iCity').value, lat: d.lat, lon: d.lon });
+    if (draft !== d) return;
+    $('#iType').classList.remove('skel');
+    if (data.name) setIfEmpty('name', data.name);
+    if (data.type) setIfEmpty('type', data.type);
+    if (data.website) setIfEmpty('website', data.website);
+    if (data.facadeImageUrl) d.remoteUrl = data.facadeImageUrl;
+    if (data.menuUrl) d.menuUrl = data.menuUrl;
+    setStep('type', data.type ? 'done' : 'fail');
+    setStatus(data.type ? '✨ Restaurant identifié : ' + ($('#iName').value || data.name) + ' · ' + data.type + '. Vérifie avant d\'enregistrer.' : 'Analyse terminée. Vérifie le nom et choisis le type si nécessaire.');
+  } catch (e) {
+    if (draft !== d) return;
+    $('#iType').classList.remove('skel'); setStep('type', 'fail');
+    setStatus('ℹ️ Identification automatique indisponible. Tu peux compléter la fiche manuellement.');
+  }
+}
+
+$('#btnCancel').onclick = closeSheet;
+$('#btnSave').onclick = async () => {
+  const btn = $('#btnSave'); btn.disabled = true;
+  try {
+    const rec = { ...draft }; delete rec._dataUrl;
+    rec.id = draft.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    rec.date = draft.date || new Date().toISOString();
+    rec.rating = ratingOf(draft);
+    for (const k in fields) rec[k] = $(fields[k]).value.trim();
+    if (!rec.name) rec.name = 'Restaurant sans nom';
+    await DB.put(rec);
+    const k = items.findIndex(x => x.id === rec.id); if (k > -1) items[k] = rec; else items.push(rec);
+    closeSheet(); persistStorage();
+    toast('Restaurant enregistré ✔︎');
+    refresh();
+  } catch { toast('Enregistrement impossible (espace insuffisant ?)'); }
+  btn.disabled = false;
+};
+
+/* ---------- ajout par nom + ville ---------- */
+let addCandidate = null;
+const setAddStatus = m => { $('#addStatus').textContent = m; };
+function showAddCandidate(p) {
+  addCandidate = p;
+  $('#addTitle').textContent = p.name || 'Restaurant';
+  $('#addType').textContent = p.type ? '🍽️ ' + p.type : '';
+  $('#addAddress').textContent = p.address ? '📍 ' + p.address : '';
+  const ph = $('#addPhoto'); ph.hidden = !p.photo; ph.src = p.photo || ''; ph.alt = 'Façade de ' + (p.name || 'ce restaurant');
+  $('#addWebsite').hidden = !p.website; if (p.website) $('#addWebsite').href = p.website;
+  $('#addMenu').hidden = !p.menuUrl; if (p.menuUrl) { $('#addMenu').href = p.menuUrl; $('#addMenu').textContent = 'Voir le menu'; }
+  $('#addResult').hidden = false;
+}
+$('#btnFind').onclick = async () => {
+  const name = $('#addName').value.trim(), city = $('#addCity').value.trim();
+  if (!name || !city) { setAddStatus('Indique le nom du restaurant et la ville.'); return; }
+  const btn = $('#btnFind'); btn.disabled = true; $('#addResult').hidden = true; addCandidate = null;
+  setAddStatus('✨ Recherche du restaurant et de sa photo…');
+  try {
+    const data = await callEnrichment({ lookup: true, name, city });
+    if (!data.name) { setAddStatus('Aucun résultat fiable trouvé. Vérifie le nom ou la ville.'); return; }
+    showAddCandidate(data);
+    setAddStatus('Fiche trouvée. Recherche du menu en ligne…');
+    try { // la recherche de menu est facultative
+      const md = await callEnrichment({ findMenu: true, name: data.name, address: data.address, city, type: data.type });
+      if (md.menuUrl) { addCandidate.menuUrl = md.menuUrl; $('#addMenu').href = md.menuUrl; $('#addMenu').hidden = false; }
+      else if (data.website) { $('#addMenu').href = data.website; $('#addMenu').textContent = 'Site / menu du restaurant'; $('#addMenu').hidden = false; }
+    } catch { if (data.website) { $('#addMenu').href = data.website; $('#addMenu').textContent = 'Site du restaurant'; $('#addMenu').hidden = false; } }
+    setAddStatus('Vérifie que c\'est bien le bon établissement avant de l\'ajouter.');
+  } catch (e) { setAddStatus('Recherche impossible : ' + (e.message || 'réessaie dans un instant.')); }
+  finally { btn.disabled = false; }
+};
+async function remotePhoto(url) {
+  try {
+    const r = await fetch(url); if (!r.ok) throw 0;
+    const photoBlob = await r.blob();
+    const bmp = await createImageBitmap(photoBlob);
+    return { photoBlob, thumbBlob: await thumbBlobFrom(bmp) };
+  } catch { return {}; }
+}
+$('#btnAddResult').onclick = async () => {
+  if (!addCandidate) return;
+  const p = addCandidate, city = $('#addCity').value.trim();
+  if (items.some(x => norm(x.name) === norm(p.name) && norm(x.city) === norm(city))) { toast('Déjà dans ta liste'); return; }
+  const btn = $('#btnAddResult'); btn.disabled = true;
+  const lastPart = (p.address || '').split(',').pop().trim();
+  const rec = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: new Date().toISOString(), rating: 0,
+    name: p.name, address: p.address || '', city, district: p.district || '', country: /\d/.test(lastPart) ? '' : lastPart,
+    type: p.type || '', website: p.website || '', menu: '', menuUrl: p.menuUrl || '',
+    remoteUrl: p.photo || '', lat: p.lat ?? null, lon: p.lon ?? null,
+    ...(p.photo ? await remotePhoto(p.photo) : {})
+  };
+  try {
+    await DB.put(rec); items.push(rec); persistStorage();
+    addCandidate = null; $('#addResult').hidden = true; $('#addName').value = ''; $('#addCity').value = '';
+    setAddStatus(''); toast('Restaurant ajouté ✔︎'); showView('list');
+  } catch { toast('Enregistrement impossible'); }
+  btn.disabled = false;
+};
+
+/* ---------- listes, filtres ---------- */
+function baseItems(k) { return items.filter(i => k === 'done' ? (ratingOf(i) > 0 && (!topOnly || ratingOf(i) >= 4)) : ratingOf(i) === 0); }
+function applyFilters(base, k) {
+  const q = norm(search[k].trim());
+  const r = base.filter(i => (!F.city || i.city === F.city) && (!F.dist || i.district === F.dist) && (!F.type || i.type === F.type) &&
+    (!q || norm([i.name, i.address, i.district, i.city, i.country, i.type, i.menu, i.note].join(' ')).includes(q)));
+  const s = sortBy[k], dd = i => (me && i.lat != null) ? dist(me.lat, me.lon, Number(i.lat), Number(i.lon)) : Infinity;
+  if (s === 'near') r.sort((a, b) => { const x = dd(a), y = dd(b); return x === y ? 0 : x - y; });
+  else if (s === 'rating') r.sort((a, b) => ratingOf(b) - ratingOf(a) || (b.visitedAt || b.date || '').localeCompare(a.visitedAt || a.date || ''));
+  else r.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return r;
+}
+function buildToolbar(k) {
+  $('#tb-' + k).innerHTML = `<div class="tbRow"><input id="q-${k}" class="q" type="search" placeholder="Nom, plat, ville…" aria-label="Rechercher" enterkeyhint="search"><button class="fbtn" id="fb-${k}" data-filter="${k}" aria-label="Filtres et tri">⚙︎ Filtres<span class="fcount" hidden></span></button></div><div class="active" id="af-${k}"></div>`;
+  $('#q-' + k).oninput = e => { search[k] = e.target.value; render(k); };
+}
+function cardHtml(i, k) {
+  const sub = [i.district, i.city].filter(Boolean).join(' · '), d = distTxt(i), r = ratingOf(i), src = thumbSrc(i);
+  return `<article class="card" data-id="${esc(i.id)}">
+    <div class="cimg">${src ? `<img loading="lazy" decoding="async" src="${esc(src)}" alt="">` : '<div class="noimg" aria-hidden="true">🍽️</div>'}${d ? `<span class="badge dist">📍 ${d}</span>` : ''}${r ? `<span class="badge rate" aria-label="${r} sur 5">${'★'.repeat(r)}</span>` : ''}</div>
+    <div class="cbody"><button class="cname" data-open="${esc(i.id)}">${esc(i.name)}</button>${i.type ? `<span class="pill">${esc(i.type)}</span>` : ''}<small>${esc(sub || 'Lieu à compléter')}</small>${k === 'done' && i.note ? `<small class="note">« ${esc(i.note)} »</small>` : ''}</div>
+    ${k === 'list' ? `<button class="mini" data-rate="${esc(i.id)}" aria-label="Marquer ${esc(i.name)} comme testé">✓ Testé</button>` : ''}</article>`;
+}
+function emptyHtml(k, baseN, totalN) {
+  if (baseN && (F.city || F.dist || F.type || search[k])) return `<div class="empty"><div class="big">🔍</div><p>Aucun résultat avec ces critères.</p><button class="ghost" data-resetf>Réinitialiser les filtres</button></div>`;
+  if (k === 'list') return `<div class="empty"><div class="big">🍽️</div><p>${totalN ? 'Rien à tester pour le moment.' : 'Ta liste est vide.'}</p><button class="primary" data-act="photo">📷 Photographier un restaurant</button><button class="ghost" data-act="search">🔎 Chercher par nom</button></div>`;
+  return `<div class="empty"><div class="big">⭐</div><p>${topOnly ? 'Aucun resto à 4★ ou plus pour l\'instant.' : 'Aucun resto testé pour l\'instant.'}</p><p class="sub">Dans « À tester », touche « ✓ Testé » pour noter un restaurant.</p><button class="ghost" data-vgo="list">Voir ma liste</button></div>`;
+}
+function render(k) {
+  const base = baseItems(k), res = applyFilters(base, k);
+  const n = [F.city, F.dist, F.type].filter(Boolean).length, fc = $(`#fb-${k} .fcount`);
+  fc.hidden = !n; fc.textContent = n;
+  $('#af-' + k).innerHTML = [['city', F.city], ['dist', F.dist], ['type', F.type]].filter(x => x[1]).map(([key, v]) => `<button class="chip on" data-clear="${key}" aria-label="Retirer le filtre ${esc(v)}">${esc(v)} ✕</button>`).join('');
+  if (k === 'done') {
+    const tested = items.filter(i => ratingOf(i) > 0).length, top = items.filter(i => ratingOf(i) >= 4).length;
+    $('#segAll').textContent = `Tous (${tested})`; $('#segTop').textContent = `⭐ Mon Top (${top})`;
+    $('#segAll').classList.toggle('on', !topOnly); $('#segTop').classList.toggle('on', topOnly);
+    $('#segAll').setAttribute('aria-pressed', String(!topOnly)); $('#segTop').setAttribute('aria-pressed', String(topOnly));
+    $('#btnShare').hidden = !res.length;
+  }
+  $(k === 'list' ? '#list' : '#doneList').innerHTML = res.length ? res.map(i => cardHtml(i, k)).join('') : emptyHtml(k, base.length, items.length);
+  lastRenderPos = me ? { ...me } : null;
+  updateBackupDot();
+}
+function refresh() {
+  if (view === 'list' || view === 'done') render(view);
+  if (view === 'map') drawMarkers(false);
+  updateBackupDot();
+}
+function renderFilters() {
+  const k = filterScope, base = baseItems(k);
+  const cities = uniq(base.map(i => i.city)), dists = uniq(base.filter(i => !F.city || i.city === F.city).map(i => i.district)), types = uniq(base.map(i => i.type));
+  const chips = (key, vals) => vals.length ? `<div class="chips">${vals.map(v => `<button class="chip${F[key] === v ? ' on' : ''}" data-f="${key}" data-v="${esc(v)}" aria-pressed="${F[key] === v}">${esc(v)}</button>`).join('')}</div>` : '<p class="hint">Aucune donnée.</p>';
+  const sorts = k === 'done' ? [['rating', 'Mieux notés'], ['recent', 'Plus récents'], ['near', 'Plus proches']] : [['recent', 'Plus récents'], ['near', 'Plus proches']];
+  $('#fBody').innerHTML = `<h3>Trier par</h3><div class="chips">${sorts.map(([v, l]) => `<button class="chip${sortBy[k] === v ? ' on' : ''}" data-sort="${v}" aria-pressed="${sortBy[k] === v}">${l}</button>`).join('')}</div>${sortBy[k] === 'near' && !me ? '<p class="hint">Active la localisation pour trier par distance.</p>' : ''}
+    <h3>Ville</h3>${chips('city', cities)}<h3>Quartier</h3>${chips('dist', dists)}<h3>Type de cuisine</h3>${chips('type', types)}`;
+  $('#fDone').textContent = `Voir ${applyFilters(base, k).length} résultat(s)`;
+}
+function openFilters(k) { filterScope = k; renderFilters(); openOverlay($('#filters')); }
+$('#fBody').onclick = e => {
+  const f = e.target.closest('[data-f]'), s = e.target.closest('[data-sort]');
+  if (f) { const key = f.dataset.f, v = f.dataset.v; F[key] = F[key] === v ? '' : v; if (key === 'city') F.dist = ''; }
+  else if (s) sortBy[filterScope] = s.dataset.sort;
+  else return;
+  renderFilters(); render(filterScope);
+};
+$('#fReset').onclick = () => { F.city = F.dist = F.type = ''; renderFilters(); render(filterScope); };
+$('#fDone').onclick = () => closeOverlay($('#filters'));
+$$('[data-seg]').forEach(b => b.onclick = () => { topOnly = b.dataset.seg === 'top'; render('done'); });
+
+/* ---------- note / testé ---------- */
+const starBtns = n => [1, 2, 3, 4, 5].map(k => `<button type="button" data-star="${k}" class="${k <= n ? 'on' : ''}" aria-label="${k} étoile${k > 1 ? 's' : ''}" aria-pressed="${k <= n}">${k <= n ? '★' : '☆'}</button>`).join('');
+let rateState = null;
+function openRate(id, fromCard) {
+  const i = items.find(x => x.id === id); if (!i) return;
+  rateState = { id, n: ratingOf(i), fromCard };
+  $('#rateTitle').textContent = 'Ton avis sur ' + i.name;
+  $('#rateStars').innerHTML = starBtns(rateState.n);
+  $('#rateNote').value = i.note || '';
+  $('#rateReset').hidden = !ratingOf(i);
+  openOverlay($('#rate'));
+}
+$('#rateStars').onclick = e => { const b = e.target.closest('[data-star]'); if (!b) return; rateState.n = +b.dataset.star; $('#rateStars').innerHTML = starBtns(rateState.n); };
+$('#rateCancel').onclick = () => closeOverlay($('#rate'));
+async function applyRating(i, n, note) {
+  i.rating = n; if (note !== undefined) i.note = note;
+  i.visitedAt = n ? (i.visitedAt || new Date().toISOString()) : null;
+  await DB.put(i);
+}
+$('#rateSave').onclick = async () => {
+  const { id, n, fromCard } = rateState, i = items.find(x => x.id === id);
+  if (!i) return;
+  if (!n) { toast('Choisis une note'); return; }
+  const prev = { rating: ratingOf(i), note: i.note || '', visitedAt: i.visitedAt || null };
+  closeOverlay($('#rate'));
+  if (fromCard && view === 'list') { $(`.card[data-id="${CSS.escape(id)}"]`)?.classList.add('out'); await sleep(230); }
+  try {
+    await applyRating(i, n, $('#rateNote').value.trim());
+    refresh();
+    toast(n >= 4 ? 'Ajouté à Mon Top ⭐' : 'Déplacé dans « Testés » ✔︎', { label: 'Annuler', fn: async () => { Object.assign(i, prev); await DB.put(i); refresh(); } });
+  } catch { toast('Enregistrement impossible'); refresh(); }
+};
+$('#rateReset').onclick = async () => {
+  const i = items.find(x => x.id === rateState.id); if (!i) return;
+  closeOverlay($('#rate')); await applyRating(i, 0); refresh(); toast('Remis dans « À tester »');
+};
+
+/* ---------- partage ---------- */
+async function shareSelection() {
+  const arr = applyFilters(baseItems('done'), 'done');
+  if (!arr.length) { toast('Aucun restaurant dans cette sélection'); return; }
+  const ctx = [F.type ? 'de restaurants ' + F.type.toLowerCase() : '', F.dist ? 'dans le quartier ' + F.dist : '', F.city ? 'à ' + F.city : ''].filter(Boolean).join(' ');
+  const who = LS.get('rn_name').trim();
+  const text = 'Hello,\n\nVoici mes bonnes adresses' + (ctx ? ' ' + ctx : '') + ' :\n\n' +
+    arr.map(i => [`• ${i.name}${ratingOf(i) ? ' ' + '★'.repeat(ratingOf(i)) : ''}`, [i.type, i.district, i.city].filter(Boolean).join(' · '), i.address || '', i.note ? `« ${i.note} »` : '',
+      i.lat != null ? `https://www.google.com/maps/search/?api=1&query=${i.lat},${i.lon}` : ''].filter(Boolean).join('\n')).join('\n\n') +
+    '\n\nBelles découvertes !' + (who ? '\n' + who : '');
+  if (navigator.share) { try { await navigator.share({ title: 'Mes bonnes adresses RestoNotes', text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  location.href = 'mailto:?subject=' + encodeURIComponent('Mes bonnes adresses RestoNotes') + '&body=' + encodeURIComponent(text);
+}
+$('#btnShare').onclick = shareSelection;
+
+/* ---------- détail ---------- */
+function openDetail(id) {
+  const i = items.find(x => x.id === id); if (!i) return;
+  revokeTemp(); detailId = id;
+  const place = [i.district, i.city].filter(Boolean).join(' · '), web = safeUrl(i.website), menuUrl = /^https?:\/\//i.test(i.menuUrl || '') ? i.menuUrl : '';
+  const src = fullSrc(i), d = distTxt(i);
+  const route = i.lat != null ? `https://www.google.com/maps/dir/?api=1&destination=${i.lat},${i.lon}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([i.name, i.address, i.city].filter(Boolean).join(' '))}`;
+  $('#detailBody').innerHTML = `
+    ${src ? `<img class="shot" src="${esc(src)}" alt="Façade de ${esc(i.name)}">` : ''}
+    <h2>${esc(i.name)}</h2>
+    ${i.type ? `<span class="pill">${esc(i.type)}</span>` : ''}
+    <div id="dStars" class="stars" role="group" aria-label="Ma note">${starBtns(ratingOf(i))}</div>
+    ${place || i.country ? `<p>📍 ${esc(place)}${i.country ? (place ? ', ' : '') + esc(i.country) : ''}${d ? ' · à ' + d : ''}</p>` : ''}
+    ${i.address ? `<p>${esc(i.address)}</p>` : ''}
+    ${web ? `<p><a class="link" href="${esc(web)}" target="_blank" rel="noopener">${esc(i.website)}</a></p>` : ''}
+    ${menuUrl ? `<p><a class="link" href="${esc(menuUrl)}" target="_blank" rel="noopener">📖 Consulter le menu en ligne</a></p>` : ''}
+    <label>Ma note perso<textarea id="dNote" rows="2" maxlength="200" placeholder="Prendre le tiramisu…">${esc(i.note || '')}</textarea></label>
+    ${i.menu ? `<pre>${esc(i.menu)}</pre>` : ''}
+    <div class="stack">
+      <a class="primary" target="_blank" rel="noopener" href="${esc(route)}">🧭 Itinéraire</a>
+      ${i.lat != null ? '<button class="ghost" id="dMap">🗺️ Voir sur la carte</button>' : ''}
+      <button class="ghost" id="dMenu">🌐 Rechercher le menu avec l'IA</button>
+      <button class="ghost" id="dEdit">✏️ Modifier la fiche</button>
+      <button class="ghost" id="dClose">Fermer</button>
+    </div>
+    <div style="text-align:center;padding-bottom:calc(14px + env(safe-area-inset-bottom))"><button class="linkBtn danger" id="dDel">Supprimer ce restaurant</button></div>`;
+  openOverlay($('#detail'));
+  $('#dClose').onclick = closeDetail;
+  $('#dStars').onclick = async e => {
+    const b = e.target.closest('[data-star]'); if (!b) return;
+    const n = +b.dataset.star, nv = ratingOf(i) === n ? 0 : n;
+    await applyRating(i, nv); $('#dStars').innerHTML = starBtns(nv); refresh();
+    toast(nv ? (nv >= 4 ? 'Dans Mon Top ⭐' : 'Noté ✔︎') : 'Remis dans « À tester »');
+  };
+  $('#dNote').onchange = async e => { i.note = e.target.value.trim(); await DB.put(i); refresh(); };
+  $('#dMenu').onclick = async () => {
+    const b = $('#dMenu'); b.disabled = true; b.textContent = 'Recherche du menu…';
+    try {
+      const data = await callEnrichment({ name: i.name, address: i.address, city: i.city, type: i.type, findMenu: true });
+      if (data.menuUrl || data.menuText) { i.menuUrl = data.menuUrl || i.menuUrl; i.menu = data.menuText || i.menu; await DB.put(i); openDetail(i.id); toast('Recherche terminée ✔︎'); }
+      else { toast('Aucun menu fiable trouvé'); b.disabled = false; b.textContent = '🌐 Rechercher le menu avec l\'IA'; }
+    } catch (err) { toast(err.message || 'IA indisponible'); b.disabled = false; b.textContent = '🌐 Rechercher le menu avec l\'IA'; }
+  };
+  $('#dEdit').onclick = () => { closeDetail(); openSheet({ ...i }, { edit: true }); };
+  $('#dDel').onclick = async () => {
+    if (!confirm('Supprimer « ' + i.name + ' » ? Cette action est définitive.')) return;
+    await DB.del(i.id); items = items.filter(x => x.id !== i.id);
+    closeDetail(); refresh(); toast('Restaurant supprimé');
+  };
+  const dm = $('#dMap');
+  if (dm) dm.onclick = () => { closeDetail(); pendingFocus = { lat: Number(i.lat), lon: Number(i.lon) }; showView('map'); };
+}
+function closeDetail() { closeOverlay($('#detail')); detailId = null; revokeTemp(); }
+
+/* ---------- clics globaux ---------- */
+document.addEventListener('click', e => {
+  const t = e.target;
+  const act = t.closest('[data-act]');
+  if (act) {
+    if (!$('#actions').hidden) closeOverlay($('#actions'));
+    if (act.dataset.act === 'photo') showView('cam'); else showView('add');
+    return;
+  }
+  const go = t.closest('[data-vgo]'); if (go) { showView(go.dataset.vgo); return; }
+  if (t.closest('[data-resetf]')) { F.city = F.dist = F.type = ''; search.list = search.done = ''; $$('.q').forEach(q => q.value = ''); render(view); return; }
+  const clr = t.closest('[data-clear]'); if (clr) { F[clr.dataset.clear] = ''; if (clr.dataset.clear === 'city') F.dist = ''; render(view); return; }
+  const fb = t.closest('[data-filter]'); if (fb) { openFilters(fb.dataset.filter); return; }
+  const rt = t.closest('[data-rate]'); if (rt) { openRate(rt.dataset.rate, true); return; }
+  const op = t.closest('[data-open]'); if (op) { openDetail(op.dataset.open); return; }
+  const c = t.closest('.card'); if (c) openDetail(c.dataset.id);
+});
+
+/* ---------- carte (Google Maps) ---------- */
+const DARK_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#242220' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#aaa49b' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242220' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#14202b' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#3a3733' }] }
+];
+const mapStyles = () => [...(matchMedia('(prefers-color-scheme: dark)').matches ? DARK_STYLE : []), { featureType: 'poi.business', stylers: [{ visibility: 'off' }] }];
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => map?.setOptions({ styles: mapStyles() }));
+const hasCoords = i => i.lat != null && i.lon != null;
+
+function initMap() {
+  $('#mapMsg').hidden = true;
+  if (window.google?.maps) {
+    if (!map) createGoogleMap();
+    else { google.maps.event.trigger(map, 'resize'); drawMarkers(!pendingFocus).then(consumeFocus); updateMe(); }
+    return;
+  }
+  if (mapLoading) return;
+  mapLoading = true;
+  fetch('/.netlify/functions/maps-config')
+    .then(r => { if (!r.ok) throw new Error('Configuration Google Maps indisponible'); return r.json(); })
+    .then(config => {
+      if (!config.key) throw new Error('Clé Google Maps absente');
+      window.initRestoGoogleMap = () => createGoogleMap();
+      const s = document.createElement('script');
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(config.key) + '&callback=initRestoGoogleMap&loading=async';
+      s.async = true;
+      s.onerror = () => { mapLoading = false; mapFail('Chargement de Google Maps impossible.'); };
+      document.head.appendChild(s);
+    })
+    .catch(err => { mapLoading = false; mapFail(navigator.onLine ? (err.message || 'Carte indisponible.') : 'Carte indisponible hors-ligne.'); });
+}
+function mapFail(msg) { $('#mapMsgTxt').textContent = msg; $('#mapMsg').hidden = false; }
+$('#btnMapRetry').onclick = initMap;
+function createGoogleMap() {
+  mapLoading = false;
+  map = new google.maps.Map($('#map'), { center: { lat: 48.8566, lng: 2.3522 }, zoom: 12, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, styles: mapStyles() });
+  infoWindow = new google.maps.InfoWindow();
+  drawMarkers(!pendingFocus).then(consumeFocus);
+  updateMe();
+}
+function consumeFocus() { if (pendingFocus && map) { map.setCenter({ lat: pendingFocus.lat, lng: pendingFocus.lon }); map.setZoom(17); pendingFocus = null; } }
+function restaurantIcon(type) {
+  const t = norm(type);
+  if (/sushi|japon/.test(t)) return '🍣';
+  if (/italien|pizza/.test(t)) return '🍕';
+  if (/chinois/.test(t)) return '🥢';
+  if (/indien/.test(t)) return '🍛';
+  if (/mexicain|taco/.test(t)) return '🌮';
+  if (/francais|gastronom|bistrot|brasserie/.test(t)) return '🍷';
+  if (/burger|americain/.test(t)) return '🍔';
+  if (/libanais|levantin|moyen-orient/.test(t)) return '🥙';
+  if (/veget|vegan|healthy|salade/.test(t)) return '🥑';
+  if (/cafe|brunch|coffee|boulangerie/.test(t)) return '☕';
+  if (/thai/.test(t)) return '🍜';
+  if (/fruits de mer|poisson/.test(t)) return '🐟';
+  if (/espagnol|tapas|paella/.test(t)) return '🥘';
+  return '🍴';
+}
+const pinColor = i => { const r = ratingOf(i); return r >= 4 ? '#f2a900' : (r > 0 ? '#3f8f5f' : '#e86f45'); };
+function makeMarker(i, attach) {
+  const m = new google.maps.Marker({
+    position: { lat: Number(i.lat), lng: Number(i.lon) }, map: attach ? map : null, title: i.name,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 17, fillColor: pinColor(i), fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+    label: { text: restaurantIcon(i.type), fontSize: '17px' }
+  });
+  m.addListener('click', () => {
+    const box = document.createElement('div'); box.style.cssText = 'color:#252321;min-width:140px';
+    const r = ratingOf(i);
+    box.innerHTML = `<b>${esc(i.name)}</b><br>${esc([i.district, i.city].filter(Boolean).join(' · '))}${r ? `<br><span style="color:#d99400">${'★'.repeat(r)}</span>` : ''}<br>`;
+    const a = document.createElement('a'); a.href = '#'; a.textContent = 'Voir la fiche'; a.style.cssText = 'color:#b83f19;font-weight:700';
+    a.onclick = ev => { ev.preventDefault(); infoWindow.close(); openDetail(i.id); };
+    box.append(a); infoWindow.setContent(box); infoWindow.open({ anchor: m, map });
+  });
+  return m;
+}
+async function drawMarkers(fit) {
+  if (!map || !window.google?.maps) return;
+  const seq = ++drawSeq;
+  const list = items.filter(hasCoords), cluster = list.length >= 30;
+  if (cluster && !window.markerClusterer) { try { await loadScript('https://unpkg.com/@googlemaps/markerclusterer@2.5.3/dist/index.min.js'); } catch {} }
+  if (seq !== drawSeq) return;
+  clusterer?.clearMarkers(); clusterer = null; markers.forEach(m => m.setMap(null));
+  const useCluster = cluster && !!window.markerClusterer;
+  markers = list.map(i => makeMarker(i, !useCluster));
+  if (useCluster) clusterer = new markerClusterer.MarkerClusterer({ map, markers });
+  if (fit) fitAll();
+}
+function fitAll() {
+  if (!map || !window.google?.maps) return;
+  const pts = items.filter(hasCoords).map(i => ({ lat: Number(i.lat), lon: Number(i.lon) }));
+  if (me) pts.push(me);
+  if (pts.length > 1) {
+    const b = new google.maps.LatLngBounds(); pts.forEach(p => b.extend({ lat: p.lat, lng: p.lon }));
+    map.fitBounds(b, 50);
+    google.maps.event.addListenerOnce(map, 'idle', () => { if (map.getZoom() > 16) map.setZoom(16); });
+  } else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lon }); map.setZoom(15); }
+}
+function updateMe() {
+  if (!map || !me || !window.google?.maps) return;
+  const position = { lat: me.lat, lng: me.lon };
+  if (!meMarker) meMarker = new google.maps.Marker({ position, map, title: 'Ma position', zIndex: 999, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#2f80ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 } });
+  else meMarker.setPosition(position);
+}
+$('#btnMe').onclick = () => { if (me && map) { map.setCenter({ lat: me.lat, lng: me.lon }); map.setZoom(16); } else toast('Position indisponible : active la localisation'); };
+$('#btnAll').onclick = fitAll;
+
+/* ---------- sauvegarde / import / réglages ---------- */
+async function exportData() {
+  if (!items.length) { toast('Rien à sauvegarder'); return; }
+  toast('Préparation de la sauvegarde…');
+  const out = [];
+  for (const i of items) { const r = { ...i }; if (i.photoBlob) r.photo = await blobToDataUrl(i.photoBlob); delete r.photoBlob; delete r.thumbBlob; out.push(r); }
+  const text = JSON.stringify({ app: 'restonotes', version: 2, exportedAt: new Date().toISOString(), items: out });
+  const name = 'resto-notes-' + new Date().toISOString().slice(0, 10) + '.json';
+  const file = new File([text], name, { type: 'application/json' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Sauvegarde RestoNotes' }); LS.set('rn_last_export', String(Date.now())); renderSettings(); updateBackupDot(); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  LS.set('rn_last_export', String(Date.now())); renderSettings(); updateBackupDot();
+  toast('Sauvegarde téléchargée ✔︎');
+}
+async function importData(file) {
+  try {
+    const data = JSON.parse(await file.text()), arr = Array.isArray(data) ? data : data.items;
+    if (!Array.isArray(arr)) throw 0;
+    let n = 0;
+    for (const r of arr) { if (!r || !r.id || !r.name) continue; await upgradeRecord(r); await DB.put(r); n++; }
+    items = await DB.all(); refresh(); if (view === 'settings') renderSettings();
+    toast(n + ' restaurant' + (n > 1 ? 's' : '') + ' importé' + (n > 1 ? 's' : '') + ' ✔︎');
+  } catch { toast('Fichier invalide'); }
+}
+function updateBackupDot() {
+  const last = Number(LS.get('rn_last_export', '0'));
+  $('#backupDot').hidden = !(items.length >= 3 && Date.now() - last > 14 * 864e5);
+}
+async function persistStorage() { try { await navigator.storage?.persist?.(); } catch {} }
+async function renderSettings() {
+  const last = Number(LS.get('rn_last_export', '0')), persisted = await navigator.storage?.persisted?.().catch(() => false);
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  $('#settingsBody').innerHTML = `
+    <section><h2>Profil</h2><label>Ton prénom (signature des partages)<input id="sName" autocomplete="given-name" value="${esc(LS.get('rn_name'))}" placeholder="Ex. Alexandra"></label></section>
+    <section><h2>Sauvegarde</h2>
+      <p>Tes restaurants sont stockés uniquement sur cet appareil. Sauvegarde-les régulièrement : un changement de téléphone ou un nettoyage du navigateur les efface.</p>
+      <p>${items.length} restaurant${items.length > 1 ? 's' : ''} · ${last ? 'dernière sauvegarde le ' + new Date(last).toLocaleDateString('fr-FR') : 'jamais sauvegardé'}</p>
+      <div class="stack"><button class="primary" id="sExport">⬇︎ Sauvegarder (fichier)</button>
+      <label class="ghost btn" style="margin:0;color:var(--txt)">⬆︎ Restaurer une sauvegarde<input id="imp" type="file" accept=".json,application/json" hidden></label></div>
+      <p>Protection du stockage : ${persisted ? 'activée ✔︎' : 'non garantie par le navigateur'}</p></section>
+    ${standalone ? '' : '<section><h2>Installer l\'application</h2><p>iPhone : Partager → « Sur l\'écran d\'accueil ». Android : menu ⋮ → « Installer l\'application ».</p></section>'}
+    <section><h2>Aide</h2><div class="stack"><button class="ghost" id="sIntro">Revoir l'introduction</button></div><p>RestoNotes v2</p></section>`;
+  $('#sName').onchange = e => LS.set('rn_name', e.target.value.trim());
+  $('#sExport').onclick = exportData;
+  $('#imp').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importData(f); };
+  $('#sIntro').onclick = openOnboarding;
+}
+
+/* ---------- migration des anciennes données ---------- */
+async function upgradeRecord(r) {
+  let changed = false;
+  if (r.isTop !== undefined) { if (r.rating == null) r.rating = r.isTop ? 5 : 0; if (r.isTop && !r.visitedAt) r.visitedAt = r.date || new Date().toISOString(); delete r.isTop; changed = true; }
+  if (r.rating == null) { r.rating = 0; changed = true; }
+  // Anciennes URLs Google contenant la clé API : on les remplace par le proxy (sans clé).
+  for (const k of ['facadePhoto', 'facadeUrl', 'remoteUrl', 'photo']) {
+    const m = typeof r[k] === 'string' && r[k].match(/places\.googleapis\.com\/v1\/(places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+)\/media/);
+    if (m) { r[k] = PROXY + '?photo=' + encodeURIComponent(m[1]); changed = true; }
+  }
+  if (typeof r.photo === 'string' && r.photo.startsWith('data:image/') && !r.photoBlob) {
+    r.photoBlob = await (await fetch(r.photo)).blob();
+    try { r.thumbBlob = await thumbBlobFrom(await createImageBitmap(r.photoBlob)); } catch {}
+    delete r.photo; changed = true;
+  } else if (typeof r.photo === 'string' && r.photo) { if (!r.remoteUrl) r.remoteUrl = r.photo; delete r.photo; changed = true; }
+  return changed;
+}
+async function migrate() {
+  let n = 0;
+  for (const r of items) { try { if (await upgradeRecord(r)) { await DB.put(r); n++; } } catch {} }
+  if (n) refresh();
+}
+
+/* ---------- intro ---------- */
+const SLIDES = [
+  ['📷', 'Photographie une façade', 'Prends un restaurant en photo : RestoNotes lit l\'enseigne et retrouve sa fiche.'],
+  ['🔎', 'Ou cherche-le par son nom', 'Tape un nom et une ville : photo, adresse et menu sont récupérés pour toi.'],
+  ['⭐', 'Teste, note, retrouve', 'Garde tes envies dans « À tester », note ceux que tu as goûtés et retrouve tes préférés dans Mon Top. Ta position sert à identifier le resto et afficher les distances ; tes données restent sur ton appareil.']
+];
+let onbIdx = 0;
+function renderOnb() {
+  const [icon, title, text] = SLIDES[onbIdx];
+  $('#onbIcon').textContent = icon; $('#onbTitle').textContent = title; $('#onbText').textContent = text;
+  $('#onbDots').innerHTML = SLIDES.map((_, k) => `<i class="${k === onbIdx ? 'on' : ''}"></i>`).join('');
+  $('#onbNext').textContent = onbIdx === SLIDES.length - 1 ? 'Commencer' : 'Suivant';
+}
+function openOnboarding() { onbIdx = 0; renderOnb(); openOverlay($('#onb')); }
+function endOnboarding() { LS.set('rn_onb', '1'); closeOverlay($('#onb')); startGeo(); }
+$('#onbNext').onclick = () => { if (onbIdx < SLIDES.length - 1) { onbIdx++; renderOnb(); } else endOnboarding(); };
+$('#onbSkip').onclick = endOnboarding;
+closers.onb = endOnboarding;
+
+/* ---------- géolocalisation (démarrée après l'intro) ---------- */
+let geoStarted = false;
+function startGeo() {
+  if (geoStarted || !navigator.geolocation) return;
+  geoStarted = true;
+  navigator.geolocation.watchPosition(p => {
+    const first = !me; me = { lat: p.coords.latitude, lon: p.coords.longitude };
+    updateMe();
+    if ((view === 'list' || view === 'done') && (first || (lastRenderPos && dist(me.lat, me.lon, lastRenderPos.lat, lastRenderPos.lon) > 100))) render(view);
+  }, () => {}, { enableHighAccuracy: false, maximumAge: 30000, timeout: 20000 });
+}
+
+/* ---------- démarrage ---------- */
+(async () => {
+  buildToolbar('list'); buildToolbar('done');
+  try { await DB.open(); items = await DB.all(); } catch { toast('Stockage indisponible'); }
+  showView('list');
+  migrate();
+  if (!LS.get('rn_onb')) openOnboarding(); else startGeo();
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+})();
+</script>
+</body>
+</html>

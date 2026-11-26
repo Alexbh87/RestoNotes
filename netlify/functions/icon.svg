@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RestoNotes">
+  <rect width="512" height="512" fill="#e86f45"/>
+  <circle cx="256" cy="256" r="118" fill="#fff"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="#e86f45" stroke-width="10" opacity=".35"/>
+  <!-- fourchette -->
+  <g fill="#fff">
+    <rect x="116" y="176" width="9" height="46" rx="4.5"/>
+    <rect x="131" y="176" width="9" height="46" rx="4.5"/>
+    <rect x="146" y="176" width="9" height="46" rx="4.5"/>
+    <rect x="116" y="212" width="39" height="26" rx="10"/>
+    <rect x="127" y="232" width="17" height="106" rx="8.5"/>
+    <!-- couteau -->
+    <path d="M384 176c24 18 30 66 4 104h-8V176z"/>
+    <rect x="372" y="272" width="17" height="66" rx="8.5"/>
+  </g>
+</svg>
